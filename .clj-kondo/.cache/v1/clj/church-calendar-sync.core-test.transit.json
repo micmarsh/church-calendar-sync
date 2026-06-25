@@ -1,0 +1,1 @@
+["^ ","~$a-test",["^ ","~:row",5,"~:col",1,"~:fixed-arities",["~#set",[0]],"~:name","^0","~:ns","~$church-calendar-sync.core-test","~:top-ns","^7","~:arities",["^ ","~i0",["^ ","~:ret","~:boolean","~:arglist-str","[]"]]],"~:filename","/home/michael/OtherProjects/church-calendar-sync/test/church_calendar_sync/core_test.clj"]
