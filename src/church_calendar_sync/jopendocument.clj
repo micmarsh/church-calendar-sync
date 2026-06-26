@@ -1,6 +1,8 @@
-(ns church-calendar-sync.jopendocument 
+(ns church-calendar-sync.jopendocument
   (:require
-    [clojure.string :as str]))
+   [clojure.string :as str]
+   [clojure.spec.alpha :as s]
+   [church-calendar-sync.spec]))
 
 (defn sheet-from-file-path [ods-file-name]
   (-> ods-file-name
@@ -12,20 +14,18 @@
   ;; running into issue (with solution) described here https://stackoverflow.com/a/74628786
   (.getValue (.getElement cell)))
 
-;; sheet -> lazy seq of lazy seqs
-;; todo just limit rows and columns in here? Maybe, need to actually plan/design how this is going down
 (defn sheet->clj
   ([sheet] (sheet->clj {} sheet))
   ([config ^org.jopendocument.dom.spreadsheet.Sheet sheet]
-   (for [:let [row-count (.getRowCount sheet)
-               column-count (.getColumnCount sheet)]
-         row-i (range (get config :start-row 0) (get config :end-row row-count))
-         column-i (range (get config :start-column 0) (get config :end-column column-count))
-         :let [java-cell (.getImmutableCellAt sheet column-i row-i)]]
-     {:column column-i
-      :row row-i
-      :text (cell->text java-cell)
-      :java-cell java-cell})))
+   (let [row-count (.getRowCount sheet)
+         column-count (.getColumnCount sheet)]
+     (for [row-i (range (get config :start-row 0) (get config :end-row row-count))
+           column-i (range (get config :start-column 0) (get config :end-column column-count))
+           :let [java-cell (.getImmutableCellAt sheet column-i row-i)]]
+       {:column column-i
+        :row row-i
+        :text (cell->text java-cell)
+        :java-cell java-cell}))))
 
 ;; from here down is much more specific to this app rather than jopendocument
 ;; probably needs separate ns
@@ -39,15 +39,25 @@
    :end-column 25
    :end-row 100})
 
+(s/def :config/start-row :grid/row)
+(s/def :config/start-column :grid/column)
+(s/def :config/end-row :grid/row)
+(s/def :config/end-column :grid/column)
+
+(s/def ::config 
+  (s/keys :req [:config/start-row :config/end-row :config/start-column :config/end-column]))
+
 (defn- day-start-coords
-  [{:keys [start-row start-column, day-width day-height]}
+  [{:keys [start-row start-column, day-width day-height] :as config}
    {:keys [row column]}]
+  (s/assert ::config config)
   (let [adjusted-row (- row start-row)
         adjusted-column (- column start-column)]
     [(- adjusted-row (mod adjusted-row day-height))
      (- adjusted-column (mod adjusted-column day-width))]))
 
-(defn group-days [config cell-maps]
+(defn group-days [config cell-maps] 
+  (s/assert ::config config)
   (->> cell-maps
        (group-by (partial day-start-coords config))
        #_(filter day-group?)
@@ -59,7 +69,7 @@
   (def sheet (sheet-from-file-path ods-file-name))
 
   (def days-groups 
-    (->> sheet (sheet->clj config) (group-days config)))
+    (->> sheet (sheet->clj config) (group-days {})))
 
   (map #(dissoc % :java-cell) (days-groups [0 9])) 
   )
