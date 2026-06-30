@@ -1,13 +1,12 @@
 (ns church-calendar-sync.import.jopendocument
   (:require
-   [church-calendar-sync.spec :as spec]
-   [clojure.set :as set]
    [clojure.spec.alpha :as s]
    [clojure.string :as str]))
 
 (s/def ::sheet #(instance? org.jopendocument.dom.spreadsheet.Sheet %))
 
 (defn sheet-from-file-path [ods-file-name]
+  {:post [(s/assert ::sheet %)]}
   (-> ods-file-name
       (java.io.File.)
       (org.jopendocument.dom.spreadsheet.SpreadSheet/createFromFile)
