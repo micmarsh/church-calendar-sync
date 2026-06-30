@@ -45,12 +45,22 @@
 (s/def :config/end-column :grid/column)
 
 (s/def ::config 
-  (s/keys :req [:config/start-row :config/end-row :config/start-column :config/end-column]))
+  (s/keys :req-un [:config/start-row :config/end-row :config/start-column :config/end-column]))
+
+(s/def :cell/row :grid/row)
+(s/def :cell/column :grid/column)
+(s/def :cell/text string?)
+
+(s/def ::cell (s/keys :req-un [:cell/column :cell/row :cell/text]))
+
 
 (defn- day-start-coords
+  ;; todo this is good motivator: want something that can destructure and run spec at same time?
+  ;; maybe you're still just thinking too "typed"?
   [{:keys [start-row start-column, day-width day-height] :as config}
-   {:keys [row column]}]
+   {:keys [row column] :as cell}]
   (s/assert ::config config)
+  (s/assert (s/keys :req-un [:cell/column :cell/row]) cell)
   (let [adjusted-row (- row start-row)
         adjusted-column (- column start-column)]
     [(- adjusted-row (mod adjusted-row day-height))
@@ -58,6 +68,7 @@
 
 (defn group-days [config cell-maps] 
   (s/assert ::config config)
+  (s/assert (s/every :cell) cell-maps)
   (->> cell-maps
        (group-by (partial day-start-coords config))
        #_(filter day-group?)
