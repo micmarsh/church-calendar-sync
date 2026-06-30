@@ -45,8 +45,15 @@
 (def ^:private years (mapv str (range 2026 2070)))
 (def ^:private day-of-month? (into #{} (map str (range 1 32))))
 
+(defn- day-str-parts [str]
+  (str/split str #" |'|,"))
+
 (defn- contains-day-of-month? [str]
-  (not-empty (set/intersection day-of-month? (into #{} (str/split str #" |'|,")))))
+  (->> str
+       (day-str-parts)
+       (into #{})
+       (set/intersection day-of-month?)
+       (not-empty)))
 
 (defn- contains-year? [str]
   (some (partial str/includes? str) years))
@@ -69,20 +76,23 @@
       (and (= 1 next-day-val)
            (#{28, 29, 30, 31} current-day-val))))
 
-(defn- day-val [arg1]
-  1) ;; todo: this!
+(defn- day-val [day-group]
+  (->> (first day-group)
+       (:text)
+       (day-str-parts)
+       (remove empty?)
+       (first)
+       (Integer.)))
 
-(defn- keep-first-continuous [day-groups]
-  (loop [results []
-         remaining (rest day-groups)
-         current-day-val (day-val (first day-groups))]
-    (let [next-day-val (day-val (first remaining))]
-     (cond
-      (empty? remaining) results
-      (consecutive? current-day-val next-day-val) results
-      :else (recur (conj results (first day-groups))
-                   (rest remaining)
-                   next-day-val)))))
+(day-val [{:text "'1 Aug, 2026"}])
+
+(defn keep-first-continuous [day-groups]
+  (->> day-groups
+       (partition 2 1)
+       (take-while (fn [[current-day-group next-day-group]]
+                     (consecutive? (day-val current-day-group) (day-val next-day-group))))
+       ((fn [consecutives]
+          (cons (ffirst consecutives) (map second consecutives))))))
 
 (defn group-days [config cell-maps]
   (s/assert ::spec/config config)
@@ -90,10 +100,6 @@
   (->> cell-maps
        (group-by (partial day-start-coords config))
        (only-group-vals)
-       ;; todo delete, just for testing!
-       (#(concat % [[{:text "22"}] [{:text "23"}] [{:text "24"}] [{:text "25"}]]))
-
-
        (filter day-group?)
        (keep-first-continuous)))
 
@@ -121,7 +127,7 @@
 
        (group-days config)
 
-       (map first))
+       #_(map first)) 
 
   (def days-groups
     (->> sheet (ods/sheet->clj config) (ods/group-days {})))
