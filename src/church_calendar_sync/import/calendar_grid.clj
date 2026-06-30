@@ -70,8 +70,8 @@
        ((fn [consecutives]
           (cons (ffirst consecutives) (map second consecutives))))))
 
-(s/def ::day-cell-group
-  (s/and vector? (s/+ ::spec/cell)))
+(s/def ::day-cell-groups
+  (s/+ (s/and vector? (s/+ ::spec/cell))))
 
 (defn group-days [config cell-maps]
   (s/assert ::spec/config config)
@@ -81,4 +81,4 @@
        (only-group-vals)
        (filter day-group?)
        (keep-first-continuous)
-       (s/assert (s/+ ::day-cell-group))))
+       (s/assert ::day-cell-groups)))
