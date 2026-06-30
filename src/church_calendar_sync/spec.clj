@@ -32,7 +32,7 @@
 (s/def ::cell (s/keys :req-un [:cell/column :cell/row :cell/text]))
 
 (s/def :service/date-time inst?)
-(s/def :service/name string?)
+(s/def :service/name (s/and not-empty string?))
 (s/def :service/feast string?) ;; usually "saint", but more general
 (s/def :service/all-english? boolean?)
 (s/def :service/type #{:liturgy :weekday-evening :vigil :moleben})
