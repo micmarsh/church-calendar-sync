@@ -64,10 +64,13 @@
     (or (full-day-str? day-cell-val)
         (day-of-month? day-cell-val))))
 
-(defn- non-sequential? [current-day-val next-day-val]
-  (and (not= (inc current-day-val) next-day-val)
-       (not= 1 next-day-val)
-       (not (#{28, 29, 30, 31} current-day-val))))
+(defn consecutive? [current-day-val next-day-val]
+  (or (= (inc current-day-val) next-day-val)
+      (and (= 1 next-day-val)
+           (#{28, 29, 30, 31} current-day-val))))
+
+(defn- day-val [arg1]
+  1) ;; todo: this!
 
 (defn- keep-first-continuous [day-groups]
   (loop [results []
@@ -76,7 +79,7 @@
     (let [next-day-val (day-val (first remaining))]
      (cond
       (empty? remaining) results
-      (non-sequential? current-day-val next-day-val) results
+      (consecutive? current-day-val next-day-val) results
       :else (recur (conj results (first day-groups))
                    (rest remaining)
                    next-day-val)))))
