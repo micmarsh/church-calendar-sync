@@ -1,10 +1,10 @@
 (ns church-calendar-sync.import 
   (:require
-    [church-calendar-sync.import.calendar-grid :refer [group-days]]
     [church-calendar-sync.import.jopendocument :as ods]
     [church-calendar-sync.spec :as spec]
     [clojure.spec.alpha :as s]
-    [clojure.string :as str]))
+    [clojure.string :as str]
+    [church-calendar-sync.import.calendar-grid :as grid]))
 
 ;; (s/def :service/date-time inst?)
 ;;   this can be pulled out of every day
@@ -34,27 +34,48 @@
        (partition day-width)
        (map (comp str/join :text))))
 
-(defn- deduplicate-services [services]
+(def ^:private not-nil
+  #(if (nil? %1) %2 %1))
+
+(defn- merge-isolated-services [services]
+  (s/assert (s/+ ::isolated-service) services)
   (->> services
        (group-by (juxt :service/date-time :service/type))
        (vals)
        (map (fn [dup-services]
-              (apply merge-with #(if (nil? %1) %2 %1) dup-services)))))
+              (apply merge-with not-nil dup-services)))
+       (s/assert (s/+ ::spec/service)))) ;; todo: remove this laster form once testing is over?
+
+;; keep in mind these are strings!
+(s/def :isolated-service/day grid/day-of-month?)
+(s/def :isolated-service/year (s/or nil? (into #{} grid/years)))
+(s/def :isolated-service/month (s/or nil? grid/contains-month?))
+
+(s/def ::isolated-service
+  :req [:isolated-service/day
+        :isolated-service/month
+        :isolated-service/year
+        :service/type]
+  ;; there will be many others, these are guranteed^
+  )
+
+(defn- day-lines->isolated-services [day-lines]
+  )
 
 (defn- day-groups->services [{:keys [day-width]} day-groups]
   (->> day-groups
+       ;; todo need to account for month-year! Maybe here or slightly "higher level!"
        (map (partial day-group->day-lines day-width))
-       (partition 2 1)
-       (mapcat day-lines-pair->services)
-       (deduplicate-services))) 
+       (mapcat day-lines->isolated-services)
+       (merge-isolated-services))) 
 
 (defn ods-sheet->services [config sheet]
   (s/assert ::spec/config config)
   (s/assert ::ods/sheet sheet)
   (->> (ods/sheet->clj config sheet)
-       (group-days config)
+       (grid/group-days config)
        (day-groups->services config)
-       #_(s/assert ::services))) ; may not even need config, we'll see!
+       (s/assert ::services))) ; may not even need config, we'll see!
 
 (comment
   (def ^:const ods-file-name "/home/michael/Documents/FrGregoryCalendarjune2026.ods")
@@ -65,9 +86,7 @@
      :day-width 3
      :day-height 8
      :end-column 25
-     :end-row 100})
-
-  config
+     :end-row 100}) 
 
   (s/check-asserts true)
   (def sheet (ods/sheet-from-file-path ods-file-name))
@@ -78,4 +97,6 @@
 
        (group-days config)
 
-       #_(map first)))
+       #_(map first))
+  
+  )

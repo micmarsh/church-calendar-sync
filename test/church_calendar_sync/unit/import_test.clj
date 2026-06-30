@@ -1,4 +1,4 @@
-(ns church-calendar-sync.import-test
+(ns church-calendar-sync.unit.import-test
   (:require [church-calendar-sync.import.calendar-grid 
              :refer [consecutive?] :as grid]
             [clojure.test :refer :all]))

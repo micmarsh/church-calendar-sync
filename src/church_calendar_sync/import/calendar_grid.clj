@@ -16,10 +16,10 @@
 (def ^:private only-group-vals
   (comp vals (partial sort-by key)))
 
-(def ^:private months
+(def months
   ["Jan", "Feb", "March", "April", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"])
-(def ^:private years (mapv str (range 2026 2070)))
-(def ^:private day-of-month? (into #{} (map str (range 1 32))))
+(def years (mapv str (range 2026 2070)))
+(def day-of-month? (into #{} (map str (range 1 32))))
 
 (defn- day-str-parts [str]
   (str/split str #" |'|,"))
@@ -34,11 +34,11 @@
 (defn- contains-year? [str]
   (some (partial str/includes? str) years))
 
-(defn- contains-month [str]
+(defn contains-month? [str]
   (some (partial str/includes? str) months))
 
 (defn- full-day-str? [str]
-  (and (contains-month str)
+  (and (contains-month? str)
        (contains-year? str)
        (contains-day-of-month? str)))
 
