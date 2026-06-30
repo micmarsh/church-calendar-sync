@@ -39,8 +39,8 @@
                        :unknown})
 
 (s/def ::service 
-  (s/keys :req-un [:service/date-time
-                   :service/all-english?
-                   :service/feast
-                   :service/type]))
+  (s/keys :req [:service/date-time
+                :service/all-english?
+                :service/feast
+                :service/type]))
 
