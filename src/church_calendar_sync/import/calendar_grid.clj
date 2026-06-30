@@ -1,33 +1,9 @@
-(ns church-calendar-sync.jopendocument
+(ns church-calendar-sync.import.calendar-grid 
   (:require
-   [church-calendar-sync.spec :as spec]
-   [clojure.set :as set]
-   [clojure.spec.alpha :as s]
-   [clojure.string :as str]))
-
-(s/def ::sheet #(instance? org.jopendocument.dom.spreadsheet.Sheet %))
-
-(defn sheet-from-file-path [ods-file-name]
-  (-> ods-file-name
-      (java.io.File.)
-      (org.jopendocument.dom.spreadsheet.SpreadSheet/createFromFile)
-      (.getFirstSheet)))
-
-(defn- cell->text [^org.jopendocument.dom.spreadsheet.Cell cell]
-  ;; running into issue (with solution) described here https://stackoverflow.com/a/74628786
-  (.getValue (.getElement cell)))
-
-(defn sheet->clj
-  [config ^org.jopendocument.dom.spreadsheet.Sheet sheet]
-  (let [row-count (.getRowCount sheet)
-        column-count (.getColumnCount sheet)]
-    (for [row-i (range (get config :start-row 0) (get config :end-row row-count))
-          column-i (range (get config :start-column 0) (get config :end-column column-count))
-          :let [java-cell (.getImmutableCellAt sheet column-i row-i)]]
-      {:column column-i
-       :row row-i
-       :text (cell->text java-cell)
-       :java-cell java-cell})))
+    [church-calendar-sync.spec :as spec]
+    [clojure.set :as set]
+    [clojure.spec.alpha :as s]
+    [clojure.string :as str]))
 
 (defn- day-start-coords
   [{:keys [start-row start-column, day-width day-height]}
@@ -40,7 +16,7 @@
 (def ^:private only-group-vals
   (comp vals (partial sort-by key)))
 
-(def ^:private months 
+(def ^:private months
   ["Jan", "Feb", "March", "April", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"])
 (def ^:private years (mapv str (range 2026 2070)))
 (def ^:private day-of-month? (into #{} (map str (range 1 32))))
@@ -94,6 +70,9 @@
        ((fn [consecutives]
           (cons (ffirst consecutives) (map second consecutives))))))
 
+(s/def ::day-cell-group
+  (s/and vector? (s/+ ::spec/cell)))
+
 (defn group-days [config cell-maps]
   (s/assert ::spec/config config)
   (s/assert (s/+ ::spec/cell) cell-maps)
@@ -101,36 +80,5 @@
        (group-by (partial day-start-coords config))
        (only-group-vals)
        (filter day-group?)
-       (keep-first-continuous)))
-
-(comment
-  (def ^:const ods-file-name "/home/michael/Documents/FrGregoryCalendarjune2026.ods")
-
-
-
-  (def ^:const config
-    {:start-row 10
-     :start-column 0
-     :day-width 3
-     :day-height 8
-     :end-column 25
-     :end-row 100})
-
-  config
-
-  (s/check-asserts true)
-  (def sheet (sheet-from-file-path ods-file-name))
-
-  (->> sheet
-       (sheet->clj config)
-       (map #(dissoc % :java-cell))
-
-       (group-days config)
-
-       #_(map first)) 
-
-  (def days-groups
-    (->> sheet (ods/sheet->clj config) (ods/group-days {})))
-
-  (map #(dissoc % :java-cell) (days-groups [0 9]))
-  )
+       (keep-first-continuous)
+       (s/assert (s/+ ::day-cell-group))))
