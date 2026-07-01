@@ -1,9 +1,11 @@
 (ns church-calendar-sync.unit.import-test
-  (:require [church-calendar-sync.import :refer [day-string->isolated-services]]
+  (:require [church-calendar-sync.import :refer [day-string->isolated-services
+                                                 merge-isolated-services]]
             [church-calendar-sync.import.calendar-grid 
              :refer [consecutive?] :as grid]
-            [clojure.test :refer :all]
-            [clojure.spec.alpha :as s]))
+            [church-calendar-sync.integration.expected-results :refer [june]]
+            [clojure.spec.alpha :as s]
+            [clojure.test :refer :all]))
 
 (deftest test-consecutive
   (testing "true for sequential days within given month"
@@ -69,3 +71,35 @@
              :service/type :service-type/weekday-evening
              :service/all-english? true}]
            (day-string->isolated-services "5     All-English Cycle Evening Services 1800")))))
+
+(def test-isolated-merge
+  (concat [{:isolated-service/month 6
+            :isolated-service/day 1} 
+           
+           {:isolated-service/day 2
+            :isolated-service/hours 18
+            :isolated-service/minutes 0
+            :service/all-english? true
+            :service/type :service-type/weekday-evening}]
+          expected-isolated-services))
+
+(def expected-merged-services
+  [{:service/date-time (june 2 18)
+    :service/all-english? true
+    :service/type :service-type/weekday-evening
+    :service/feast "Sts. Constantine and Helen"}
+   
+   {:service/date-time (june 3 9)
+    :service/all-english? true
+    :service/type :service-type/liturgy
+    :service/feast "Sts. Constantine and Helen"}
+   
+   {:service/feast "Moleben & Akathist to the Theotokos"
+    :service/type :service-type/moleben
+    :service/all-english? false
+    :service/date-time (june 3 18)}])
+
+(deftest test-merge-isolated-services
+  (testing "works as expected"
+    (is (= expected-merged-services 
+           (merge-isolated-services test-isolated-merge)))))

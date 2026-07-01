@@ -38,7 +38,7 @@
 (def ^:private not-nil
   #(if (nil? %1) %2 %1))
 
-(defn- merge-isolated-services [services]
+(defn merge-isolated-services [services]
   (s/assert (s/+ ::isolated-service) services)
   (->> services
        ;; todo: need to convert "isolated-service" entities to real date-times right here!
