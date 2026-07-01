@@ -29,10 +29,11 @@
 
 (s/def ::services (s/+ ::spec/service))
 
-(defn- day-group->day-lines [day-width day-group]
+(defn- day-group->day-string [day-width day-group]
   (->> day-group
        (partition day-width)
-       (map (comp str/join :text))))
+       (map (comp str/join :text))
+       (str/join " ")))
 
 (def ^:private not-nil
   #(if (nil? %1) %2 %1))
@@ -40,6 +41,8 @@
 (defn- merge-isolated-services [services]
   (s/assert (s/+ ::isolated-service) services)
   (->> services
+       ;; todo: need to convert "isolated-service" entities to real date-times right here!
+       ;;   some kind of sequential processing
        (group-by (juxt :service/date-time :service/type))
        (vals)
        (map (fn [dup-services]
@@ -47,26 +50,42 @@
        (s/assert (s/+ ::spec/service)))) ;; todo: remove this laster form once testing is over?
 
 ;; keep in mind these are strings!
+(s/def ::nil? nil?)
 (s/def :isolated-service/day grid/day-of-month?)
-(s/def :isolated-service/year (s/or nil? (into #{} grid/years)))
-(s/def :isolated-service/month (s/or nil? grid/contains-month?))
+(s/def :isolated-service/hours int?)
+(s/def :isolated-service/minutes int?)
+
+(s/def :isolated-service/year (s/or ::nil? (into #{} grid/years)))
+(s/def :isolated-service/month (s/or ::nil? grid/contains-month?))
+
 
 (s/def ::isolated-service
-  :req [:isolated-service/day
-        :isolated-service/month
-        :isolated-service/year
-        :service/type]
-  ;; there will be many others, these are guranteed^
+  ;; there will be many others, these are guranteed
+  ;; technically can use "multimethod spec" to enforce?
+  (s/keys
+   :req [:isolated-service/day
+         :isolated-service/hours
+         :isolated-service/minutes
+
+         :isolated-service/month
+         :isolated-service/year
+         :service/type]))
+
+(defn- build-iso-service-step [{:keys [total current]} next-str-piece]
   )
 
-(defn- day-lines->isolated-services [day-lines]
-  )
+(defn day-string->isolated-services [day-str]
+  (s/assert string? day-str)
+  (->> (str/split day-str #" ")
+       (reverse)
+       (reduce build-iso-service-step {:total [] :current {}})
+       (:total)
+       (s/assert (s/* ::isolated-service))))
 
 (defn- day-groups->services [{:keys [day-width]} day-groups]
   (->> day-groups
-       ;; todo need to account for month-year! Maybe here or slightly "higher level!"
-       (map (partial day-group->day-lines day-width))
-       (mapcat day-lines->isolated-services)
+       (map (partial day-group->day-string day-width))
+       (mapcat day-string->isolated-services)
        (merge-isolated-services))) 
 
 (defn ods-sheet->services [config sheet]
@@ -75,7 +94,7 @@
   (->> (ods/sheet->clj config sheet)
        (grid/group-days config)
        (day-groups->services config)
-       (s/assert ::services))) ; may not even need config, we'll see!
+       (s/assert ::services)))
 
 (comment
   (def ^:const ods-file-name "/home/michael/Documents/FrGregoryCalendarjune2026.ods")

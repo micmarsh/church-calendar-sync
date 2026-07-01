@@ -31,12 +31,19 @@
 
 (s/def ::cell (s/keys :req-un [:cell/column :cell/row :cell/text]))
 
-(s/def :service/date-time inst?)
+(s/def :service/date-time (partial instance? java.time.LocalDateTime))
 (s/def :service/feast string?) ;; usually "saint", but more general
 (s/def :service/all-english? boolean?)
-(s/def :service/type #{:liturgy :weekday-evening :vigil :moleben
-                       ;; this last one will require more attention later on user-level
-                       :unknown})
+
+(def ^:const service-types
+  #{:service-type/liturgy
+    :service-type/weekday-evening
+    :service-type/vigil
+    :service-type/moleben
+    ;; this last one will require more attention later on user-level
+    :service-type/unknown})
+
+(s/def :service/type service-types)
 
 (s/def ::service 
   (s/keys :req [:service/date-time

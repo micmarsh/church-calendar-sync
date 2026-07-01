@@ -1,7 +1,9 @@
 (ns church-calendar-sync.unit.import-test
-  (:require [church-calendar-sync.import.calendar-grid 
+  (:require [church-calendar-sync.import :refer [day-string->isolated-services]]
+            [church-calendar-sync.import.calendar-grid 
              :refer [consecutive?] :as grid]
-            [clojure.test :refer :all]))
+            [clojure.test :refer :all]
+            [clojure.spec.alpha :as s]))
 
 (deftest test-consecutive
   (testing "true for sequential days within given month"
@@ -36,3 +38,34 @@
   (testing "works as expected"
     (is (=  (take 4 keep-continuous-data)
             (grid/keep-first-continuous keep-continuous-data)))))
+
+(def ^:const expected-isolated-services
+  [{:isolated-service/day 3
+    :isolated-service/hours 9
+    :isolated-service/minutes 0
+    :service/type :service-type/liturgy
+    :service/feast "Sts. Constantine and Helen"}
+   
+   {:isolated-service/day 3
+    :isolated-service/hours 18
+    :isolated-service/minutes 0
+    :service/type :service-type/moleben
+    :service/feast  "Moleben & Akathist to the Theotokos"}])
+
+(def ^:const test-day-string
+  " 3     Sts. Constantine and Helen 0900 Moleben & Akathist to the Theotokos 1800 ")
+
+(deftest test-day-string-parsing
+  (s/check-asserts true)
+
+  (testing "function works as expected"
+    (is (= expected-isolated-services
+           (day-string->isolated-services test-day-string))))
+  
+  (testing "all-english parsing"
+    (is (= [{:isolated-service/day 5
+             :isolated-service/hours 18
+             :isolated-service/minutes 0
+             :service/type :service-type/weekday-evening
+             :service/all-english? true}]
+           (day-string->isolated-services "5     All-English Cycle Evening Services 1800")))))
