@@ -26,8 +26,10 @@
 
 (def all-expected-keys (into #{} (mapcat keys results/expected-services)))
 
-(def ^:private clean-for-test-compare
-  (partial map #(select-keys % all-expected-keys)))
+(defn- clean-for-test-compare [results]
+  (->> results
+       (map #(select-keys % all-expected-keys))
+       (remove (comp #{:service-type/unknown} :service/type))))
 
 (deftest test-fully-parse-spreadheet
   (testing "test spreadsheet parses to expected results"
@@ -50,6 +52,5 @@
     (is  (= results/expected-basic-sat-sun
             (->> basic-sat-sun-strings
                  (mapcat day-strs->isolated-days)
-                 (isolated-days->services)
-                 (remove (comp #{:service-type/unknown} :service/type))
+                 (isolated-days->services) 
                  (clean-for-test-compare))))))

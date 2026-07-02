@@ -58,12 +58,12 @@
   (s/assert (s/coll-of ::isolated-day) days)
   (->> days
        (assoc-full-date-times)
+       (remove #(not (contains? % :service/type))) ;; no type key at all means just a blank day
        (partition 2 1)
        (mapcat process-day-pair)
        (group-by (juxt :service/date-time :service/type))
        (vals)
        (map (partial apply merge))
-       (remove #(not (contains? % :service/type))) ;; no type key at all means just a blank day
        (s/assert ::services))) ;; todo: remove this laster form once testing is over?
 
 (s/def :isolated-day/day (into #{} (range 1 32)))
