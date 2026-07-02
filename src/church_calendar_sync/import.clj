@@ -160,6 +160,7 @@
 (defn- day-groups->services [day-groups]
   (->> day-groups
        (map day-group->day-strs)
+       ;; these last two steps are integration tested together!
        (mapcat day-strs->isolated-days)
        (isolated-days->services)))
 
