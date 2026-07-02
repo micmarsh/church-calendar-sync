@@ -47,7 +47,7 @@
 
 (s/def ::service 
   (s/keys :req [:service/date-time
-                :service/all-english?
                 :service/feast
-                :service/type]))
+                :service/type]
+          :opt [:service/all-english?]))
 

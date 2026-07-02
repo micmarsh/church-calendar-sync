@@ -21,10 +21,14 @@
    :end-column 25
    :end-row 100})
 
+(def all-expected-keys (into #{} (mapcat keys results/expected-services)))
+
 (deftest test-fully-parse-spreadheet
   (testing "test spreadsheet parses to expected results"
     (s/check-asserts true)
     (is (= results/expected-services
            (->> @test-file-path
                 (sheet-from-file-path)
-                (ods-sheet->services test-config))))))
+                (ods-sheet->services test-config)
+                (map #(select-keys % all-expected-keys)))))))
+

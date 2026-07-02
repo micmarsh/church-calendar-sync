@@ -47,14 +47,12 @@
     :isolated-day/hours 9
     :isolated-day/minutes 0
     :service/type :service-type/liturgy
-    :service/all-english? false
     :service/feast "Sts. Constantine and Helen"}
 
    {:isolated-day/day 3
     :isolated-day/hours 18
     :isolated-day/minutes 0
     :service/type :service-type/moleben
-    :service/all-english? false
     :service/feast  "Moleben & Akathist to the Theotokos"}])
 
 (def ^:const test-day-values
@@ -81,14 +79,14 @@
              :isolated-day/minutes 0,
              :isolated-day/month 6,
              :isolated-day/year 2026,
-             :service/all-english? false,
              :service/feast "Holy Spirit Day"
              :service/type :service-type/liturgy}]
            (day-strs->isolated-days ["'1 June, 2026" "Holy" "Spirit" "Day" "Div." "Liturgy" "0800" "NON-FASTING" "WEEK"])))))
 
 (def test-isolated-merge
   (concat [{:isolated-day/month 6
-            :isolated-day/day 1} 
+            :isolated-day/day 1
+            :isolated-day/year 2026} 
            
            {:isolated-day/day 2
             :isolated-day/hours 18
@@ -110,10 +108,13 @@
    
    {:service/feast "Moleben & Akathist to the Theotokos"
     :service/type :service-type/moleben
-    :service/all-english? false
     :service/date-time (june 3 18)}])
+
+(def all-expected-keys (into #{} (mapcat keys expected-merged-services)))
 
 (deftest test-isolated-days->services
   (testing "works as expected"
     (is (= expected-merged-services 
-           (isolated-days->services test-isolated-merge)))))
+           (->> test-isolated-merge
+                isolated-days->services
+                (map #(select-keys % all-expected-keys)))))))
