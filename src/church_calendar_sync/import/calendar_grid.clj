@@ -17,7 +17,7 @@
   (comp vals (partial sort-by key)))
 
 (def months
-  ["Jan", "Feb", "March", "April", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"])
+  ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"])
 (def years (mapv str (range 2026 2070)))
 (def day-of-month? (into #{} (map str (range 1 32))))
 
@@ -31,7 +31,7 @@
        (set/intersection day-of-month?)
        (not-empty)))
 
-(defn- contains-year? [str]
+(defn contains-year? [str]
   (some (partial str/includes? str) years))
 
 (defn contains-month? [str]
@@ -59,8 +59,6 @@
        (remove empty?)
        (first)
        (Integer.)))
-
-(day-val [{:text "'1 Aug, 2026"}])
 
 (defn keep-first-continuous [day-groups]
   (->> day-groups

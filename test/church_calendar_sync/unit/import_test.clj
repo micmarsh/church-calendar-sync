@@ -1,11 +1,12 @@
 (ns church-calendar-sync.unit.import-test
-  (:require [church-calendar-sync.import :refer [day-string->isolated-services
-                                                 merge-isolated-services]]
+  (:require [church-calendar-sync.import :refer [day-strs->isolated-days
+                                                 isolated-days->services]]
             [church-calendar-sync.import.calendar-grid 
              :refer [consecutive?] :as grid]
             [church-calendar-sync.integration.expected-results :refer [june]]
             [clojure.spec.alpha :as s]
-            [clojure.test :refer :all]))
+            [clojure.test :refer :all]
+            [clojure.string :as str]))
 
 (deftest test-consecutive
   (testing "true for sequential days within given month"
@@ -41,47 +42,58 @@
     (is (=  (take 4 keep-continuous-data)
             (grid/keep-first-continuous keep-continuous-data)))))
 
-(def ^:const expected-isolated-services
-  [{:isolated-service/day 3
-    :isolated-service/hours 9
-    :isolated-service/minutes 0
+(def ^:const expected-isolated-days
+  [{:isolated-day/day 3
+    :isolated-day/hours 9
+    :isolated-day/minutes 0
     :service/type :service-type/liturgy
     :service/feast "Sts. Constantine and Helen"}
    
-   {:isolated-service/day 3
-    :isolated-service/hours 18
-    :isolated-service/minutes 0
+   {:isolated-day/day 3
+    :isolated-day/hours 18
+    :isolated-day/minutes 0
     :service/type :service-type/moleben
     :service/feast  "Moleben & Akathist to the Theotokos"}])
 
-(def ^:const test-day-string
-  " 3     Sts. Constantine and Helen 0900 Moleben & Akathist to the Theotokos 1800 ")
+(def ^:const test-day-values
+  ["3" "Sts." "Constantine" "and" "Helen" "0900" "Moleben" "&" "Akathist" "to" "the" "Theotokos" "1800"])
 
 (deftest test-day-string-parsing
   (s/check-asserts true)
 
   (testing "function works as expected"
-    (is (= expected-isolated-services
-           (day-string->isolated-services test-day-string))))
+    (is (= expected-isolated-days
+           (day-strs->isolated-days test-day-values))))
   
   (testing "all-english parsing"
-    (is (= [{:isolated-service/day 5
-             :isolated-service/hours 18
-             :isolated-service/minutes 0
+    (is (= [{:isolated-day/day 5
+             :isolated-day/hours 18
+             :isolated-day/minutes 0
              :service/type :service-type/weekday-evening
              :service/all-english? true}]
-           (day-string->isolated-services "5     All-English Cycle Evening Services 1800")))))
+           (day-strs->isolated-days ["5" "All-English" "Cycle" "Evening" "Services" "1800"]))))
+  
+  (testing "start of month and extraneous text parsing"
+    (is (= [{:isolated-day/day 1
+             :isolated-day/hours 8
+             :isolated-day/minutes 0,
+             :isolated-day/month 6,
+             :isolated-day/year 2026,
+             :service/all-english? false,
+             :service/feast "Holy Spirit Day"
+             :service/type :service-type/liturgy}]
+           (day-strs->isolated-days ["'1 June, 2026" "Holy" "Spirit" "Day" "Div." "Liturgy" "0800" "NON-FASTING" "WEEK"])))))
 
 (def test-isolated-merge
-  (concat [{:isolated-service/month 6
-            :isolated-service/day 1} 
+  (concat [{:isolated-day/month 6
+            :isolated-day/day 1} 
            
-           {:isolated-service/day 2
-            :isolated-service/hours 18
-            :isolated-service/minutes 0
+           {:isolated-day/day 2
+            :isolated-day/hours 18
+            :isolated-day/minutes 0
             :service/all-english? true
             :service/type :service-type/weekday-evening}]
-          expected-isolated-services))
+          expected-isolated-days))
 
 (def expected-merged-services
   [{:service/date-time (june 2 18)
@@ -99,7 +111,7 @@
     :service/all-english? false
     :service/date-time (june 3 18)}])
 
-(deftest test-merge-isolated-services
+(deftest test-isolated-days->services
   (testing "works as expected"
     (is (= expected-merged-services 
-           (merge-isolated-services test-isolated-merge)))))
+           (isolated-days->services test-isolated-merge)))))
