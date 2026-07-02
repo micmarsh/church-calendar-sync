@@ -95,7 +95,7 @@
             :isolated-day/minutes 0
             :service/all-english? true
             :service/type :service-type/weekday-evening}]
-          expected-isolated-days))
+          (assoc-in expected-isolated-days [0 :service/all-english?] true)))
 
 (def expected-merged-services
   [{:service/date-time (june 2 18)

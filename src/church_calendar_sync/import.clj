@@ -9,8 +9,7 @@
 
 (s/def ::services (s/coll-of ::spec/service))
 
-;; todo don't want day strings, instead want ["Date (day or date)" "Word1" "Word2" "0900", ...]?
-(defn- day-group->day-strs [day-width [date-cell & rest]]
+(defn- day-group->day-strs [[date-cell & rest]]
   (lazy-seq
    (cons (:text date-cell)
          (for [{:keys [text]} rest
@@ -58,10 +57,6 @@
        (parse-int (str/join (take 2 next-str)))
        (parse-int (str/join (drop 2 next-str)))))
 
-(defn- in-progress? [acc]
-  (or (not-empty (:current-text acc))
-      (not-empty (:current-map acc))))
-
 (def ^:const service-type-map
   {"Div. Liturgy" :service-type/liturgy
    "Evening Services" :service-type/weekday-evening
@@ -93,67 +88,9 @@
                         (str/replace non-feast-texts "")
                         (str/trim))}))
 
-(defn- add-current
-  [{:keys [total-results current-map] :as acc}]
-  {:pre [(s/assert ::build-isolated-service acc)]
-   :post [(s/assert :build-iso/total-results %)]}
-  (conj total-results (merge current-map (service-details acc))))
-
 (defn- from-time [next-str]
   {:isolated-day/hours (parse-int (str/join (take 2 next-str)))
    :isolated-day/minutes (parse-int (str/join (drop 2 next-str)))})
-
-(defn- day-str? [next-str]
-  (grid/day-of-month? (str/replace next-str "'" "")))
-
-(defn- assoc-day [{:keys [current-map potential-full-date] :as acc} next-str]
-  ;; want to assoc day and also add to others in "total", given it's per day
-  (if (empty? potential-full-date)
-    (let [day (parse-int next-str)])
-    nil))
-
-(s/def :build-iso/current-map map?)
-(s/def :build-iso/potential-full-date (s/and list? (s/* string?)))
-(s/def :build-iso/current-text (s/and list? (s/* string?)))
-(s/def :build-iso/total-results (s/and vector? (s/* ::isolated-day)))
-(s/def :build-iso/day-results (s/and vector? (s/* :build-iso/current-map)))
-
-(s/def ::build-isolated-service
-  (s/keys :req-un
-          [:build-iso/current-map
-           :build-iso/potential-full-date
-           :build-iso/current-text
-           :build-iso/total-results
-           :build-iso/day-results]))
-
-(def ^:const empty-build-steps
-  {:total-results [] :current-map {} :day-results [] :current-text '() :potential-full-date '()})
-
-;; todo!? Make this the foundation of everything (maybe not, wait)
-(defn- build-iso-service-step [{:keys [current-map] :as acc} next-str]
-  {:pre [(s/assert ::build-isolated-service acc)]
-   :post [(s/assert ::build-isolated-service %)]}
-  (throw (Exception. (str "TODO: implement " 'build-iso-service-step " or rip it out in favor of more sensical method (see below)")))
-  #_(cond
-      ;; the end of a day, add everything to all maps for that day and forward them on to "results"
-      (day-str? next-str) (as-> acc *
-                            (update * :total-results into (full-day-results acc next-str))
-                            (merge * (dissoc empty-build-steps :total-results)))
-
-      ;; encountering a time adds everything so far to "day-results", starts working on a new "current"
-      (and (time-str? next-str) (in-progress? acc)) ()  #_(assoc acc
-                                                                 :total-results (add-current acc)
-                                                                 :current-text '()
-                                                                 :current-map (from-time next-str))
-
-      ;; encountering a time at the very start of a day is expected
-      (time-str? next-str) (assoc acc :current-map (from-time next-str))
-
-      =    (grid/contains-year? next-str) (assoc acc :potential-full-date (list next-str))
-
-      (grid/contains-month? next-str) (update acc :potential-full-date conj next-str)
-
-      :else (update acc :current-text conj next-str)))
 
 (defn- month-str->int [month]
   (some->> (map-indexed vector grid/months)
@@ -162,11 +99,11 @@
            (inc)))
 
 (defn- str->day-entities [day-str]
-  (let [[day month year] (remove empty? (str/split day-str #" |'|,"))
-        result  {:isolated-day/day (parse-int day)
+  (let [[day month year] (remove empty? (str/split day-str #" |'|,"))]
+    (-> {:isolated-day/day (parse-int day)
                  :isolated-day/year (parse-int year)
-                 :isolated-day/month (some-> month month-str->int)}]
-    result))
+                 :isolated-day/month (some-> month month-str->int)}
+        (remove-vals nil?))))
 
 (defn day-strs->isolated-days [day-strs]
   {:pre [(s/assert (s/coll-of string?) day-strs)]
@@ -185,10 +122,9 @@
                                    (remove-vals #(if (seqable? %) (empty? %) (nil? %)))))
                  (drop (count service-info) words)))))))
 
-
-(defn- day-groups->services [{:keys [day-width]} day-groups]
+(defn- day-groups->services [day-groups]
   (->> day-groups
-       (map (partial day-group->day-strs day-width))
+       (map day-group->day-strs)
        (mapcat day-strs->isolated-days)
        (isolated-days->services)))
 
@@ -197,27 +133,5 @@
   (s/assert ::ods/sheet sheet)
   (->> (ods/sheet->clj config sheet)
        (grid/group-days config)
-       (day-groups->services config)
+       (day-groups->services)
        (s/assert ::services)))
-
-(comment
-  (def ^:const ods-file-name "/home/michael/Documents/FrGregoryCalendarjune2026.ods")
-
-  (def ^:const config
-    {:start-row 10
-     :start-column 0
-     :day-width 3
-     :day-height 8
-     :end-column 25
-     :end-row 100})
-
-  (s/check-asserts true)
-  (def sheet (ods/sheet-from-file-path ods-file-name))
-
-  (->> sheet
-       (ods/sheet->clj config)
-       (map #(dissoc % :java-cell))
-
-       (group-days config)
-
-       #_(map first)))
