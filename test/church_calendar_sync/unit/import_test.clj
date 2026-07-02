@@ -47,16 +47,18 @@
     :isolated-day/hours 9
     :isolated-day/minutes 0
     :service/type :service-type/liturgy
+    :service/all-english? false
     :service/feast "Sts. Constantine and Helen"}
-   
+
    {:isolated-day/day 3
     :isolated-day/hours 18
     :isolated-day/minutes 0
     :service/type :service-type/moleben
+    :service/all-english? false
     :service/feast  "Moleben & Akathist to the Theotokos"}])
 
 (def ^:const test-day-values
-  ["3" "Sts." "Constantine" "and" "Helen" "0900" "Moleben" "&" "Akathist" "to" "the" "Theotokos" "1800"])
+  ["3" "Sts." "Constantine" "and" "Helen" "Div." "Liturgy" "0900" "Moleben" "&" "Akathist" "to" "the" "Theotokos" "1800"])
 
 (deftest test-day-string-parsing
   (s/check-asserts true)

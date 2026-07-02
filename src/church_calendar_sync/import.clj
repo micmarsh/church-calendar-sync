@@ -3,7 +3,7 @@
    [church-calendar-sync.import.calendar-grid :as grid]
    [church-calendar-sync.import.jopendocument :as ods]
    [church-calendar-sync.spec :as spec]
-   [church-calendar-sync.utils :refer [take-until]]
+   [church-calendar-sync.utils :refer [remove-vals take-until]]
    [clojure.spec.alpha :as s]
    [clojure.string :as str]))
 
@@ -11,12 +11,12 @@
 
 ;; todo don't want day strings, instead want ["Date (day or date)" "Word1" "Word2" "0900", ...]?
 (defn- day-group->day-strs [day-width [date-cell & rest]]
- (lazy-seq 
-  (cons (:text date-cell) 
-        (for [{:keys [text]} rest
-              word (str/split text #" ")
-              :when (not-empty word)]
-          word))))
+  (lazy-seq
+   (cons (:text date-cell)
+         (for [{:keys [text]} rest
+               word (str/split text #" ")
+               :when (not-empty word)]
+           word))))
 
 (def ^:private not-nil
   #(if (nil? %1) %2 %1))
@@ -38,15 +38,14 @@
 (s/def :isolated-day/hours int?)
 (s/def :isolated-day/minutes int?)
 
-
 (s/def ::isolated-day
   (s/keys
    :req [:isolated-day/day]
 
    :opt [:isolated-day/month
          :isolated-day/hours
-         :isolated-day/minutes 
-         :isolated-day/year 
+         :isolated-day/minutes
+         :isolated-day/year
          :service/type]))
 
 (defn parse-int [str]
@@ -70,21 +69,21 @@
    "Moleben" :service-type/moleben
    "" :service-type/unknown})
 
-(defn- match-service-type [text-str]
-  (->> service-type-map
-       (filter (fn [[service-desc _]] (str/includes? text-str service-desc)))
-       (first)
-       (val)))
-
 (def ^:const all-english "All-English Cycle")
 
 (def non-feast-texts
-  (->> service-type-map
+  (->> (dissoc service-type-map "Moleben" "")
        keys
        (remove empty?)
        (cons all-english)
        (str/join "|")
        re-pattern))
+
+(defn- match-service-type [text-str]
+  (->> service-type-map
+       (filter (fn [[service-desc _]] (str/includes? text-str service-desc)))
+       (first)
+       (val)))
 
 (defn- service-details [words]
   (let [text-str (str/join " " words)]
@@ -119,8 +118,8 @@
 (s/def :build-iso/total-results (s/and vector? (s/* ::isolated-day)))
 (s/def :build-iso/day-results (s/and vector? (s/* :build-iso/current-map)))
 
-(s/def ::build-isolated-service 
-  (s/keys :req-un 
+(s/def ::build-isolated-service
+  (s/keys :req-un
           [:build-iso/current-map
            :build-iso/potential-full-date
            :build-iso/current-text
@@ -136,25 +135,25 @@
    :post [(s/assert ::build-isolated-service %)]}
   (throw (Exception. (str "TODO: implement " 'build-iso-service-step " or rip it out in favor of more sensical method (see below)")))
   #_(cond
-    ;; the end of a day, add everything to all maps for that day and forward them on to "results"
-    (day-str? next-str) (as-> acc *
-                          (update * :total-results into (full-day-results acc next-str))
-                          (merge * (dissoc empty-build-steps :total-results)))
+      ;; the end of a day, add everything to all maps for that day and forward them on to "results"
+      (day-str? next-str) (as-> acc *
+                            (update * :total-results into (full-day-results acc next-str))
+                            (merge * (dissoc empty-build-steps :total-results)))
 
-    ;; encountering a time adds everything so far to "day-results", starts working on a new "current"
-    (and (time-str? next-str) (in-progress? acc)) ()  #_(assoc acc
-                                                               :total-results (add-current acc)
-                                                               :current-text '()
-                                                               :current-map (from-time next-str))
+      ;; encountering a time adds everything so far to "day-results", starts working on a new "current"
+      (and (time-str? next-str) (in-progress? acc)) ()  #_(assoc acc
+                                                                 :total-results (add-current acc)
+                                                                 :current-text '()
+                                                                 :current-map (from-time next-str))
 
-    ;; encountering a time at the very start of a day is expected
-    (time-str? next-str) (assoc acc :current-map (from-time next-str))
+      ;; encountering a time at the very start of a day is expected
+      (time-str? next-str) (assoc acc :current-map (from-time next-str))
 
-=    (grid/contains-year? next-str) (assoc acc :potential-full-date (list next-str))
+      =    (grid/contains-year? next-str) (assoc acc :potential-full-date (list next-str))
 
-    (grid/contains-month? next-str) (update acc :potential-full-date conj next-str)
+      (grid/contains-month? next-str) (update acc :potential-full-date conj next-str)
 
-    :else (update acc :current-text conj next-str)))
+      :else (update acc :current-text conj next-str)))
 
 (defn- month-str->int [month]
   (some->> (map-indexed vector grid/months)
@@ -167,8 +166,7 @@
         result  {:isolated-day/day (parse-int day)
                  :isolated-day/year (parse-int year)
                  :isolated-day/month (some-> month month-str->int)}]
-    (select-keys result (map key (remove (comp nil? val) result)))))
-
+    result))
 
 (defn day-strs->isolated-days [day-strs]
   {:pre [(s/assert (s/coll-of string?) day-strs)]
@@ -179,11 +177,12 @@
            words (rest day-strs)]
       (let [service-info (take-until time-str? words)
             time-str (last service-info)]
-        (if (not (time-str? time-str)) ;; covers "empty?" case as well
-          results ;; need to add day entites for empty case? when no services? Interesting
-          (recur (conj results (merge (service-details (drop-last service-info))
-                                      (from-time time-str)
-                                      day-entities))
+        (if (not (time-str? time-str))
+          (if (empty? results) [day-entities] results)
+          (recur (conj results (-> (drop-last service-info) 
+                                   (service-details)
+                                   (merge (from-time time-str) day-entities)
+                                   (remove-vals #(if (seqable? %) (empty? %) (nil? %)))))
                  (drop (count service-info) words)))))))
 
 
