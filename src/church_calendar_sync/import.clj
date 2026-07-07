@@ -106,11 +106,17 @@
 
 (def non-feast-texts
   (->> (dissoc service-type-map "Moleben" "")
-       keys
-       (remove empty?)
+       (keys)
        (cons all-english)
        (str/join "|")
-       re-pattern))
+       (re-pattern)))
+
+(def non-feast-words
+  (as-> non-feast-texts *
+    (str *)
+    (str/split * #"\|| ")
+    (str/join "|" *)
+    (re-pattern *)))
 
 (defn- match-service-type [text-str]
   (->> service-type-map
@@ -121,10 +127,7 @@
 (defn- service-details [words]
   (let [text-str (str/join " " words)]
     {:service/all-english? (or (str/includes? text-str all-english) nil) ;; so remove-vals later can clean up unknown
-     :service/type (match-service-type text-str)
-     :service/feast (-> text-str
-                        (str/replace non-feast-texts "")
-                        (str/trim))}))
+     :service/type (match-service-type text-str)}))
 
 (defn- from-time [next-str]
   {:isolated-day/hours (parse-int (str/join (take 2 next-str)))
@@ -143,21 +146,31 @@
          :isolated-day/month (some-> month month-str->int)}
         (remove-vals nil?))))
 
-(defn day-strs->isolated-days [day-strs]
+(defn- take-feast-words [day-strs] 
+  (take-while #(not (or (time-str? %) (re-matches non-feast-words %))) day-strs))
+
+(defn- day-services [results words]
+  (let [service-info (take-until time-str? words)
+        time-str (last service-info)]
+    (if (not (time-str? time-str))
+      (if (empty? results) [{}] results)
+      (recur (conj results (-> (drop-last service-info)
+                               (service-details)
+                               (merge (from-time time-str))))
+             (drop (count service-info) words)))))
+
+(defn day-strs->isolated-days [[day & rest :as day-strs]]
   {:pre [(s/assert (s/coll-of string?) day-strs)]
    :post [(s/assert (s/+ ::isolated-day) %)]}
-  (let [day-entities (str->day-entities (first day-strs))]
-    (loop [results []
-           words (rest day-strs)]
-      (let [service-info (take-until time-str? words)
-            time-str (last service-info)]
-        (if (not (time-str? time-str))
-          (if (empty? results) [day-entities] results)
-          (recur (conj results (-> (drop-last service-info) 
-                                   (service-details)
-                                   (merge (from-time time-str) day-entities)
-                                   (remove-vals #(if (seqable? %) (empty? %) (nil? %)))))
-                 (drop (count service-info) words)))))))
+  (let [day-entities (str->day-entities day)
+        feast (take-feast-words rest)]
+    (map (fn [day-service] (-> day-service
+                               (merge day-entities)
+                               (remove-vals #(if (seqable? %) (empty? %) (nil? %)))
+                               (assoc :service/feast (-> (str/join " " feast)
+                                                         (str/replace non-feast-texts "")
+                                                         (str/trim)))))
+         (day-services [] (drop (count feast) rest)))))
 
 (defn- day-groups->services [day-groups]
   (->> day-groups
