@@ -24,8 +24,7 @@
     :service/date-time (june 6 8)}
 
    #:service{:date-time (june 6 17),
-             :type :service-type/confession
-             :feast "Sunday of All Saints"}
+             :type :service-type/confession}
 
    {:service/feast "Sunday of All Saints"
     :service/type :service-type/vigil

@@ -191,13 +191,15 @@
    :post [(s/assert (s/+ ::isolated-day) %)]}
   (let [day-entities (str->day-entities day)
         feast (take-feast-words rest)]
-    (for [day-service (day-services [] (drop (count feast) rest))]
-      (-> day-service
-          (merge day-entities)
-          (remove-vals #(if (seqable? %) (empty? %) (nil? %)))
-          (assoc :service/feast (-> (str/join " " feast)
-                                    (str/replace non-feast-texts "")
-                                    (str/trim)))))))
+    (for [day-service (day-services [] (drop (count feast) rest))
+          :let [type (:service/type day-service)]]
+      (cond-> day-service
+        true (merge day-entities)
+        true (remove-vals #(if (seqable? %) (empty? %) (nil? %)))
+        (= :service-type/liturgy type) (assoc :service/feast
+                                              (-> (str/join " " feast)
+                                                  (str/replace non-feast-texts "")
+                                                  (str/trim)))))))
 
 (defn- day-groups->services [day-groups]
   (->> day-groups
