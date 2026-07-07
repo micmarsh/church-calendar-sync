@@ -5,7 +5,7 @@
    [church-calendar-sync.spec :as spec]
    [church-calendar-sync.utils :refer [remove-vals take-until]]
    [clojure.spec.alpha :as s]
-   [clojure.string :as str]) 
+   [clojure.string :as str])
   (:import [java.time LocalDateTime]))
 
 (s/def ::services (s/coll-of ::spec/service))
@@ -18,7 +18,7 @@
                :when (not-empty word)]
            word))))
 
-(s/def ::full-date-day 
+(s/def ::full-date-day
   (s/keys :req [:isolated-day/year :isolated-day/month :isolated-day/day]))
 
 (defn- update-current [current-m-y current-day]
@@ -34,33 +34,60 @@
    (s/assert ::full-date-day start-day)
    (assoc-full-date-times start-day days))
   ([current-m-y [current-day & other-days]]
-   (lazy-seq 
+   (lazy-seq
     (if (nil? current-day)
       '()
       (cons (assoc current-day :service/date-time
-                   (LocalDateTime/of (:isolated-day/year current-m-y) 
-                                     (:isolated-day/month current-m-y) 
+                   (LocalDateTime/of (:isolated-day/year current-m-y)
+                                     (:isolated-day/month current-m-y)
                                      (:isolated-day/day current-day)
                                      (:isolated-day/hours current-day 0)
                                      (:isolated-day/minutes current-day 0)
                                      0)) ;; seconds
             (assoc-full-date-times (update-current current-m-y current-day) other-days))))))
 
-(defn- process-day-pair [[day1 day2]]
-  (let [service-types [(:service/type day1) (:service/type day2)]]
-    (if (or (= [:service-type/weekday-evening :service-type/liturgy] service-types)
-            (= [:service-type/vigil :service-type/liturgy] service-types))
-      [(as-> day2 * (:service/feast * "") (assoc day1 :service/feast *))
-       (some->> day1 (:service/all-english?) (assoc day2 :service/all-english?))]
-      [day1 day2])))
+(defn- process-day-group [day-group]
+  (let [feast-name (->> day-group (filter (comp #{:service-type/liturgy} :service/type)) (first) (:service/feast))
+        all-english? (->> day-group 
+                          (filter (comp #{:service-type/weekday-evening :service-type/vigil} :service/type))
+                          (first)
+                          (:service/all-english?))]
+    (for [day day-group]
+      (cond-> day
+        (not (nil? feast-name)) (assoc :service/feast feast-name)
+        (not (nil? all-english?)) (assoc :service/all-english? all-english?)))))
+
+(defn- start-group? [day]
+  (#{:service-type/weekday-evening :service-type/vigil} (:service/type day)))
+
+(defn- end-group? [day]
+  (= :service-type/liturgy (:service/type day)))
+
+(defn group-by-service-cycle [days']
+  {:post [(s/assert (s/coll-of (s/coll-of ::isolated-day)) %)]}
+  (loop [final-results []
+         current-group []
+         [current-day & next-days] days']
+    (cond
+      (nil? current-day) (conj final-results current-group)
+      (start-group? current-day) (recur (conj final-results current-group)
+                                        [current-day]
+                                        next-days)
+      (end-group? current-day) (recur (conj final-results (conj current-group current-day))
+                                      []
+                                      next-days)
+      :else (recur final-results
+                   (conj current-group current-day)
+                   next-days))))
 
 (defn isolated-days->services [days]
   (s/assert (s/coll-of ::isolated-day) days)
   (->> days
        (assoc-full-date-times)
        (remove #(not (contains? % :service/type))) ;; no type key at all means just a blank day
-       (partition 2 1)
-       (mapcat process-day-pair)
+       (group-by-service-cycle)
+       (remove empty?)
+       (mapcat process-day-group)
        (group-by (juxt :service/date-time :service/type))
        (vals)
        (map (partial apply merge))
@@ -146,7 +173,7 @@
          :isolated-day/month (some-> month month-str->int)}
         (remove-vals nil?))))
 
-(defn- take-feast-words [day-strs] 
+(defn- take-feast-words [day-strs]
   (take-while #(not (or (time-str? %) (re-matches non-feast-words %))) day-strs))
 
 (defn- day-services [results words]
@@ -164,13 +191,13 @@
    :post [(s/assert (s/+ ::isolated-day) %)]}
   (let [day-entities (str->day-entities day)
         feast (take-feast-words rest)]
-    (map (fn [day-service] (-> day-service
-                               (merge day-entities)
-                               (remove-vals #(if (seqable? %) (empty? %) (nil? %)))
-                               (assoc :service/feast (-> (str/join " " feast)
-                                                         (str/replace non-feast-texts "")
-                                                         (str/trim)))))
-         (day-services [] (drop (count feast) rest)))))
+    (for [day-service (day-services [] (drop (count feast) rest))]
+      (-> day-service
+          (merge day-entities)
+          (remove-vals #(if (seqable? %) (empty? %) (nil? %)))
+          (assoc :service/feast (-> (str/join " " feast)
+                                    (str/replace non-feast-texts "")
+                                    (str/trim)))))))
 
 (defn- day-groups->services [day-groups]
   (->> day-groups
