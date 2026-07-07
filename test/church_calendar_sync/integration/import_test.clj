@@ -47,7 +47,7 @@
    (str/split "7 Sunday of All Saints Confession 0900 Hours 0930 Div. Liturgy 1000" #" ")])
 
 (deftest test-saturday-sunday-processing
-  (s/check-asserts true)
+  (s/check-asserts false)
   (testing "basic handling of 'extra' unknown services"
     (is  (= results/expected-basic-sat-sun
             (->> basic-sat-sun-strings

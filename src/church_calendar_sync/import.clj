@@ -64,7 +64,7 @@
        (group-by (juxt :service/date-time :service/type))
        (vals)
        (map (partial apply merge))
-       (s/assert ::services))) ;; todo: remove this laster form once testing is over?
+       (s/assert ::services))) ;; todo: remove this last form once testing is over? Perhaps remove from "main function" instead?
 
 (s/def :isolated-day/day (into #{} (range 1 32)))
 (s/def :isolated-day/year (into #{} (range 2026 2071)))
@@ -98,6 +98,8 @@
    "Evening Services" :service-type/weekday-evening
    "Vigil" :service-type/vigil
    "Moleben" :service-type/moleben
+   "Hours" :service-type/hours
+   "Confession" :service-type/confession
    "" :service-type/unknown})
 
 (def ^:const all-english "All-English Cycle")

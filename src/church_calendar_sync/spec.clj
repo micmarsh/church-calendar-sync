@@ -40,7 +40,9 @@
     :service-type/weekday-evening
     :service-type/vigil
     :service-type/moleben
-    ;; this last one will require more attention later on user-level
+    ;; these last ones will require more attention later on user-level
+    :service-type/confession
+    :service-type/hours
     :service-type/unknown})
 
 (s/def :service/type service-types)
