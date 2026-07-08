@@ -37,7 +37,7 @@
    (lazy-seq
     (if (nil? current-day)
       '()
-      (cons (assoc current-day :service/date-time
+      (cons (assoc current-day :event/date-time
                    (LocalDateTime/of (:isolated-day/year current-m-y)
                                      (:isolated-day/month current-m-y)
                                      (:isolated-day/day current-day)
@@ -88,7 +88,7 @@
        (group-by-service-cycle)
        (remove empty?)
        (mapcat process-day-group)
-       (group-by (juxt :service/date-time :service/type))
+       (group-by (juxt :event/date-time :service/type))
        (vals)
        (map (partial apply merge))
        (s/assert ::services))) ;; todo: remove this last form once testing is over? Perhaps remove from "main function" instead?
