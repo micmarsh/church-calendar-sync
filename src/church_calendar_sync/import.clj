@@ -122,12 +122,8 @@
        (group-by-service-cycle)
        (remove empty?)
        (mapcat process-cycle-group)
-       (group-by (juxt :event/date-time :isolated-day/type))
-       (vals)
-       (map (partial apply merge))
        (sort-by-date :event/date-time)
-       (map #(do (s/assert ::spec/service %) %)) ;;todo remove this once don't need fine-grained
-       (s/assert ::services))) ;; todo: remove this last form once testing is over? Perhaps remove from "main function" instead?
+       (s/assert ::services)))
 
 (def ^:const service-type-map
   {"Div. Liturgy" :service-type/liturgy
@@ -250,5 +246,4 @@
   (s/assert ::ods/sheet sheet)
   (->> (ods/sheet->clj config sheet)
        (grid/group-days config)
-       (day-groups->services)
-       (s/assert ::services)))
+       (day-groups->services)))
