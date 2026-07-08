@@ -47,27 +47,36 @@
             (assoc-full-date-times (update-current current-m-y current-day) other-days))))))
 
 (defn- service? [day]
-  (= (namespace :service-type/liturgy) 
+  (= (namespace :service-type/liturgy)
      (namespace (:isolated-day/type day))))
 
 (defn- other-event? [day]
-  (= (namespace :event-type/confession) 
+  (= (namespace :event-type/confession)
      (namespace (:isolated-day/type day))))
 
+(defn- moleben? [day]
+  (= :service-type/moleben
+     (:isolated-day/type day)))
+
+(def ^:const moleben-description
+  "Moleben & Akathist to the Theotokos")
+
 (defn- process-day-group [day-group]
-  (let [feast-name (->> day-group (filter (comp #{:service-type/liturgy} :isolated-day/type)) (first) (:event/description))
-        all-english? (->> day-group 
+  (let [description (->> day-group (filter (comp #{:service-type/liturgy} :isolated-day/type)) (first) (:event/description))
+        all-english? (->> day-group
                           (filter (comp #{:service-type/weekday-evening :service-type/vigil} :isolated-day/type))
                           (first)
                           (:service/all-english?))]
     (for [day day-group
           :let [type (:isolated-day/type day)]]
-      (cond-> day 
+      (cond-> day
         (other-event? day) (assoc :event/type type)
         (other-event? day) (dissoc :event/description)
         (service? day) (assoc :service/type type)
+        (and (service? day) (not (nil? description))) (assoc :service/feast description)
+        ;; todo should go back and add description to non-moleben feasts?
         (service? day) (dissoc :event/description)
-        (and (not= :service-type/moleben type) (not (nil? feast-name))) (assoc :service/feast feast-name)
+        (moleben? day) (assoc :event/description moleben-description)
         (not (nil? all-english?)) (assoc :service/all-english? all-english?)))))
 
 (str :foo/bar)
@@ -107,7 +116,7 @@
        (group-by (juxt :event/date-time :isolated-day/type))
        (vals)
        (map (partial apply merge))
-       (map #(do (s/assert ::spec/service %) %))
+       (map #(do (s/assert ::spec/service %) %)) ;;todo remove this once don't need fine-grained
        (s/assert ::services))) ;; todo: remove this last form once testing is over? Perhaps remove from "main function" instead?
 
 (def ^:const service-type-map
@@ -124,7 +133,7 @@
 (s/def :isolated-day/month (into #{} (range 1 13)))
 (s/def :isolated-day/hours (into #{} (range 0 24)))
 (s/def :isolated-day/minutes (into #{} (range 0 60)))
-(s/def :isolated-day/type 
+(s/def :isolated-day/type
   (into #{} (vals service-type-map)))
 
 (s/def ::isolated-day
@@ -135,7 +144,7 @@
          :isolated-day/hours
          :isolated-day/minutes
          :isolated-day/year
-         :isolated-day/type 
+         :isolated-day/type
          :event/description]))
 
 (defn parse-int [str]
@@ -211,13 +220,12 @@
   (let [day-entities (str->day-entities day)
         description (take-desc-words rest)]
     (for [day-service (day-services [] (drop (count description) rest))]
-      (-> day-service
-          (merge day-entities)
-          (remove-vals #(if (seqable? %) (empty? %) (nil? %)))
-          (assoc :event/description
-                 (-> (str/join " " description)
-                     (str/replace non-feast-texts "")
-                     (str/trim)))))))
+      (cond-> day-service
+        true (merge day-entities)
+        true (remove-vals #(if (seqable? %) (empty? %) (nil? %)))
+        (empty? (:event/description day-service)) (assoc :event/description
+                                                         (-> (str/join " " description)
+                                                             (str/trim)))))))
 
 (defn- day-groups->services [day-groups]
   (->> day-groups
