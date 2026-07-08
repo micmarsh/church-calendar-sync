@@ -23,7 +23,8 @@
     :service/all-english? true
     :event/date-time (june 6 8)}
 
-   #:event{:date-time (june 6 17),
+   #:event{:service/feast "Venerable Simeon the Stylite"
+           :date-time (june 6 17),
            :type :event-type/confession}
 
    {:service/feast "Sunday of All Saints"
@@ -121,5 +122,5 @@
 (comment
   (require '[clojure.spec.alpha :as s] '[church-calendar-sync.spec :as spec])
 
-  (s/explain (s/coll-of ::spec/service) expected-services)
+  (s/explain (s/coll-of ::spec/service) expected-basic-sat-sun)
   )

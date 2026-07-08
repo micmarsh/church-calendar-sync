@@ -58,11 +58,8 @@
   (= :service-type/moleben
      (:isolated-day/type day)))
 
-(def ^:const moleben-description
-  "Moleben & Akathist to the Theotokos")
-
-(defn- process-day-group [day-group]
-  (let [description (->> day-group (filter (comp #{:service-type/liturgy} :isolated-day/type)) (first) (:event/description))
+(defn- process-cycle-group [day-group]
+  (let [feast (->> day-group (filter (comp #{:service-type/liturgy} :isolated-day/type)) (first) (:service/feast))
         all-english? (->> day-group
                           (filter (comp #{:service-type/weekday-evening :service-type/vigil} :isolated-day/type))
                           (first)
@@ -73,10 +70,9 @@
         (other-event? day) (assoc :event/type type)
         (other-event? day) (dissoc :event/description)
         (service? day) (assoc :service/type type)
-        (and (service? day) (not (nil? description))) (assoc :service/feast description)
+        (and (service? day) (not (nil? feast))) (assoc :service/feast feast)
         ;; todo should go back and add description to non-moleben feasts?
-        (service? day) (dissoc :event/description)
-        (moleben? day) (assoc :event/description moleben-description)
+        (and (service? day) (not (moleben? day))) (dissoc :event/description)
         (not (nil? all-english?)) (assoc :service/all-english? all-english?)))))
 
 (str :foo/bar)
@@ -105,6 +101,14 @@
                    (conj current-group current-day)
                    next-days))))
 
+(defn sort-by-date [date-key coll]
+  (sort-by #(-> %
+                date-key
+                (.atZone (java.time.ZoneId/of "America/Chicago"))
+                (.toInstant)
+                (.toEpochMilli))
+           coll))
+
 (defn isolated-days->services [days]
   (s/assert (s/coll-of ::isolated-day) days)
   (->> days
@@ -112,10 +116,11 @@
        (remove #(not (contains? % :isolated-day/type))) ;; no type key at all means just a blank day
        (group-by-service-cycle)
        (remove empty?)
-       (mapcat process-day-group)
+       (mapcat process-cycle-group)
        (group-by (juxt :event/date-time :isolated-day/type))
        (vals)
        (map (partial apply merge))
+       (sort-by-date :event/date-time)
        (map #(do (s/assert ::spec/service %) %)) ;;todo remove this once don't need fine-grained
        (s/assert ::services))) ;; todo: remove this last form once testing is over? Perhaps remove from "main function" instead?
 
@@ -145,6 +150,7 @@
          :isolated-day/minutes
          :isolated-day/year
          :isolated-day/type
+         :service/feast
          :event/description]))
 
 (defn parse-int [str]
@@ -182,7 +188,8 @@
 (defn- service-details [words]
   (let [text-str (str/join " " words)]
     {:service/all-english? (or (str/includes? text-str all-english) nil) ;; so remove-vals later can clean up unknown
-     :isolated-day/type (match-service-type text-str)}))
+     :isolated-day/type (match-service-type text-str)
+     :event/description (str/replace text-str non-feast-texts "")}))
 
 (defn- from-time [next-str]
   {:isolated-day/hours (parse-int (str/join (take 2 next-str)))
@@ -201,7 +208,7 @@
          :isolated-day/month (some-> month month-str->int)}
         (remove-vals nil?))))
 
-(defn- take-desc-words [day-strs]
+(defn- take-feast-words [day-strs]
   (take-while #(not (or (time-str? %) (re-matches non-feast-words %))) day-strs))
 
 (defn- day-services [results words]
@@ -218,14 +225,14 @@
   {:pre [(s/assert (s/coll-of string?) day-strs)]
    :post [(s/assert (s/+ ::isolated-day) %)]}
   (let [day-entities (str->day-entities day)
-        description (take-desc-words rest)]
-    (for [day-service (day-services [] (drop (count description) rest))]
-      (cond-> day-service
-        true (merge day-entities)
-        true (remove-vals #(if (seqable? %) (empty? %) (nil? %)))
-        (empty? (:event/description day-service)) (assoc :event/description
-                                                         (-> (str/join " " description)
-                                                             (str/trim)))))))
+        maybe-feast (take-feast-words rest)]
+    (for [day-service (day-services [] rest)]
+      (-> day-service
+          (merge day-entities)
+          (remove-vals #(if (seqable? %) (empty? %) (nil? %)))
+          (assoc :service/feast
+                 (-> (str/join " " maybe-feast)
+                     (str/trim)))))))
 
 (defn- day-groups->services [day-groups]
   (->> day-groups
