@@ -30,7 +30,8 @@
     :service/type :service-type/vigil
     :event/date-time (june 6 18)}
 
-   #:event{:date-time (june 7 9) 
+   #:event{:date-time (june 7 9)
+           :service/feast "Sunday of All Saints",
            :type :event-type/confession}
 
    #:service{:event/date-time (june 7 9 30)
@@ -120,5 +121,5 @@
 (comment
   (require '[clojure.spec.alpha :as s] '[church-calendar-sync.spec :as spec])
 
-  (s/explain (s/coll-of ::spec/service) expected-basic-sat-sun)
+  (s/explain (s/coll-of ::spec/service) expected-services)
   )

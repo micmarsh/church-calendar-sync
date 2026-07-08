@@ -46,22 +46,38 @@
                                      0)) ;; seconds
             (assoc-full-date-times (update-current current-m-y current-day) other-days))))))
 
+(defn- service? [day]
+  (= (namespace :service-type/liturgy) 
+     (namespace (:isolated-day/type day))))
+
+(defn- other-event? [day]
+  (= (namespace :event-type/confession) 
+     (namespace (:isolated-day/type day))))
+
 (defn- process-day-group [day-group]
-  (let [feast-name (->> day-group (filter (comp #{:service-type/liturgy} :service/type)) (first) (:service/feast))
+  (let [feast-name (->> day-group (filter (comp #{:service-type/liturgy} :isolated-day/type)) (first) (:event/description))
         all-english? (->> day-group 
-                          (filter (comp #{:service-type/weekday-evening :service-type/vigil} :service/type))
+                          (filter (comp #{:service-type/weekday-evening :service-type/vigil} :isolated-day/type))
                           (first)
                           (:service/all-english?))]
-    (for [day day-group]
-      (cond-> day
-        (not (nil? feast-name)) (assoc :service/feast feast-name)
+    (for [day day-group
+          :let [type (:isolated-day/type day)]]
+      (cond-> day 
+        (other-event? day) (assoc :event/type type)
+        (other-event? day) (dissoc :event/description)
+        (service? day) (assoc :service/type type)
+        (service? day) (dissoc :event/description)
+        (and (not= :service-type/moleben type) (not (nil? feast-name))) (assoc :service/feast feast-name)
         (not (nil? all-english?)) (assoc :service/all-english? all-english?)))))
 
+(str :foo/bar)
+(namespace :foo/bar)
+
 (defn- start-group? [day]
-  (#{:service-type/weekday-evening :service-type/vigil} (:service/type day)))
+  (#{:service-type/weekday-evening :service-type/vigil} (:isolated-day/type day)))
 
 (defn- end-group? [day]
-  (= :service-type/liturgy (:service/type day)))
+  (= :service-type/liturgy (:isolated-day/type day)))
 
 (defn group-by-service-cycle [days']
   {:post [(s/assert (s/coll-of (s/coll-of ::isolated-day)) %)]}
@@ -84,20 +100,32 @@
   (s/assert (s/coll-of ::isolated-day) days)
   (->> days
        (assoc-full-date-times)
-       (remove #(not (contains? % :service/type))) ;; no type key at all means just a blank day
+       (remove #(not (contains? % :isolated-day/type))) ;; no type key at all means just a blank day
        (group-by-service-cycle)
        (remove empty?)
        (mapcat process-day-group)
-       (group-by (juxt :event/date-time :service/type))
+       (group-by (juxt :event/date-time :isolated-day/type))
        (vals)
        (map (partial apply merge))
+       (map #(do (s/assert ::spec/service %) %))
        (s/assert ::services))) ;; todo: remove this last form once testing is over? Perhaps remove from "main function" instead?
+
+(def ^:const service-type-map
+  {"Div. Liturgy" :service-type/liturgy
+   "Evening Services" :service-type/weekday-evening
+   "Vigil" :service-type/vigil
+   "Moleben" :service-type/moleben
+   "Hours" :service-type/hours
+   "Confession" :event-type/confession
+   "" :service-type/unknown})
 
 (s/def :isolated-day/day (into #{} (range 1 32)))
 (s/def :isolated-day/year (into #{} (range 2026 2071)))
 (s/def :isolated-day/month (into #{} (range 1 13)))
-(s/def :isolated-day/hours int?)
-(s/def :isolated-day/minutes int?)
+(s/def :isolated-day/hours (into #{} (range 0 24)))
+(s/def :isolated-day/minutes (into #{} (range 0 60)))
+(s/def :isolated-day/type 
+  (into #{} (vals service-type-map)))
 
 (s/def ::isolated-day
   (s/keys
@@ -107,8 +135,8 @@
          :isolated-day/hours
          :isolated-day/minutes
          :isolated-day/year
-         :service/type
-         :service/feast]))
+         :isolated-day/type 
+         :event/description]))
 
 (defn parse-int [str]
   (try
@@ -119,15 +147,6 @@
   (and (= 4 (count next-str))
        (parse-int (str/join (take 2 next-str)))
        (parse-int (str/join (drop 2 next-str)))))
-
-(def ^:const service-type-map
-  {"Div. Liturgy" :service-type/liturgy
-   "Evening Services" :service-type/weekday-evening
-   "Vigil" :service-type/vigil
-   "Moleben" :service-type/moleben
-   "Hours" :service-type/hours
-   "Confession" :service-type/confession
-   "" :service-type/unknown})
 
 (def ^:const all-english "All-English Cycle")
 
@@ -154,7 +173,7 @@
 (defn- service-details [words]
   (let [text-str (str/join " " words)]
     {:service/all-english? (or (str/includes? text-str all-english) nil) ;; so remove-vals later can clean up unknown
-     :service/type (match-service-type text-str)}))
+     :isolated-day/type (match-service-type text-str)}))
 
 (defn- from-time [next-str]
   {:isolated-day/hours (parse-int (str/join (take 2 next-str)))
@@ -173,7 +192,7 @@
          :isolated-day/month (some-> month month-str->int)}
         (remove-vals nil?))))
 
-(defn- take-feast-words [day-strs]
+(defn- take-desc-words [day-strs]
   (take-while #(not (or (time-str? %) (re-matches non-feast-words %))) day-strs))
 
 (defn- day-services [results words]
@@ -190,16 +209,15 @@
   {:pre [(s/assert (s/coll-of string?) day-strs)]
    :post [(s/assert (s/+ ::isolated-day) %)]}
   (let [day-entities (str->day-entities day)
-        feast (take-feast-words rest)]
-    (for [day-service (day-services [] (drop (count feast) rest))
-          :let [type (:service/type day-service)]]
-      (cond-> day-service
-        true (merge day-entities)
-        true (remove-vals #(if (seqable? %) (empty? %) (nil? %)))
-        (= :service-type/liturgy type) (assoc :service/feast
-                                              (-> (str/join " " feast)
-                                                  (str/replace non-feast-texts "")
-                                                  (str/trim)))))))
+        description (take-desc-words rest)]
+    (for [day-service (day-services [] (drop (count description) rest))]
+      (-> day-service
+          (merge day-entities)
+          (remove-vals #(if (seqable? %) (empty? %) (nil? %)))
+          (assoc :event/description
+                 (-> (str/join " " description)
+                     (str/replace non-feast-texts "")
+                     (str/trim)))))))
 
 (defn- day-groups->services [day-groups]
   (->> day-groups
