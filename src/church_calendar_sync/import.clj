@@ -88,18 +88,23 @@
   {:post [(s/assert (s/coll-of (s/coll-of ::isolated-day)) %)]}
   (loop [final-results []
          current-group []
-         [current-day & next-days] days']
+         [current-day & next-days] days'
+         grouping? false]
     (cond
       (nil? current-day) (conj final-results current-group)
       (start-group? current-day) (recur (conj final-results current-group)
-                                        [current-day]
-                                        next-days)
+                                        [(dissoc current-day :service/feast)]
+                                        next-days
+                                        true)
       (end-group? current-day) (recur (conj final-results (conj current-group current-day))
                                       []
-                                      next-days)
+                                      next-days
+                                      false)
       :else (recur final-results
-                   (conj current-group current-day)
-                   next-days))))
+                   (conj current-group (if grouping? current-day
+                                           (dissoc current-day :service/feast)))
+                   next-days
+                   grouping?))))
 
 (defn sort-by-date [date-key coll]
   (sort-by #(-> %

@@ -23,8 +23,7 @@
     :service/all-english? true
     :event/date-time (june 6 8)}
 
-   #:event{:service/feast "Venerable Simeon the Stylite"
-           :date-time (june 6 17),
+   #:event{:date-time (june 6 17),
            :type :event-type/confession}
 
    {:service/feast "Sunday of All Saints"
@@ -115,6 +114,5 @@
           #:event{:date-time (july 11 17),
                   :type :event-type/confession}
 
-          {:service/feast "" ;; ""unknown"" b/c calendar doesn't have corresponding Sunday
-           :service/type :service-type/vigil
+          {:service/type :service-type/vigil
            :event/date-time (july 11 18)}])))

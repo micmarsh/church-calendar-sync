@@ -60,10 +60,16 @@
     :service-type/moleben (s/keys :req [:event/date-time
                                         :event/description
                                         :service/type])
+    :service-type/vigil (s/keys :req [:event/date-time 
+                                      :service/type]
+                                :opt [:service/all-english?
+                                      ;; only relevant for last day of calendar
+                                      ;; no good option here
+                                      :service/feast])
     (s/keys :req [:event/date-time
                   :service/feast
                   :service/type]
-             :opt [:service/all-english?])))
+            :opt [:service/all-english?])))
 
 ;; backwards-compatability
 (defmethod event-spec nil [e]
