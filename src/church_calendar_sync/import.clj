@@ -70,9 +70,9 @@
         (other-event? day) (assoc :event/type type)
         (other-event? day) (dissoc :event/description)
         (service? day) (assoc :service/type type)
-        (and (service? day) (not (nil? feast))) (assoc :service/feast feast)
+        (and (service? day) (not (moleben? day)) (not (nil? feast))) (assoc :service/feast feast)
         ;; todo should go back and add description to non-moleben feasts?
-        (and (service? day) (not (moleben? day))) (dissoc :event/description)
+        (and (service? day) (not (moleben? day))) (dissoc :event/description) 
         (not (nil? all-english?)) (assoc :service/all-english? all-english?)))))
 
 (str :foo/bar)
@@ -138,8 +138,7 @@
 (s/def :isolated-day/month (into #{} (range 1 13)))
 (s/def :isolated-day/hours (into #{} (range 0 24)))
 (s/def :isolated-day/minutes (into #{} (range 0 60)))
-(s/def :isolated-day/type
-  (into #{} (vals service-type-map)))
+(s/def :isolated-day/type (into #{} (vals service-type-map)))
 
 (s/def ::isolated-day
   (s/keys

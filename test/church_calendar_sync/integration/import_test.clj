@@ -29,7 +29,7 @@
 (defn- clean-for-test-compare [results]
   (->> results
        (map #(select-keys % all-expected-keys))
-       (remove (comp #{:service-type/unknown} :service/type))))
+       #_(remove (comp #{:service-type/unknown} :service/type))))
 
 (deftest test-fully-parse-spreadheet
   (testing "test spreadsheet parses to expected results"
@@ -39,7 +39,6 @@
                 (sheet-from-file-path)
                 (ods-sheet->services test-config)
                 (clean-for-test-compare))))))
-
 
 (def basic-sat-sun-strings
   [(cons "5 June, 2026" (str/split "All-English Cycle Evening Services 1800" #" "))

@@ -104,11 +104,11 @@
            :service/type :service-type/moleben
            :event/date-time (july 8 18)}
 
-          {:service/feast "Unmercenaries Cyrus & John"
+          {:service/feast "Unmercanaries Cyrus & John"
            :service/type :service-type/weekday-evening
            :event/date-time (july 10 18)}
 
-          {:service/feast "Unmercenaries Cyrus & John"
+          {:service/feast "Unmercanaries Cyrus & John"
            :service/type :service-type/liturgy
            :event/date-time (july 11 8)}
 
@@ -118,9 +118,3 @@
           {:service/feast "" ;; ""unknown"" b/c calendar doesn't have corresponding Sunday
            :service/type :service-type/vigil
            :event/date-time (july 11 18)}])))
-
-(comment
-  (require '[clojure.spec.alpha :as s] '[church-calendar-sync.spec :as spec])
-
-  (s/explain (s/coll-of ::spec/service) expected-basic-sat-sun)
-  )
