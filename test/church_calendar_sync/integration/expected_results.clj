@@ -23,18 +23,17 @@
     :service/all-english? true
     :event/date-time (june 6 8)}
 
-   #:service{:date-time (june 6 17),
-             :type :service-type/confession}
+   #:event{:date-time (june 6 17),
+           :type :event-type/confession}
 
    {:service/feast "Sunday of All Saints"
     :service/type :service-type/vigil
     :event/date-time (june 6 18)}
- 
-   #:service{:date-time (june 7 9)
-             :feast "Sunday of All Saints",
-             :type :service-type/confession}
 
-   #:service{:date-time (june 7 9 30) 
+   #:event{:date-time (june 7 9) 
+           :type :event-type/confession}
+
+   #:service{:event/date-time (june 7 9 30)
              :feast "Sunday of All Saints",
              :type :service-type/hours}
 
@@ -55,28 +54,27 @@
           :service/type :service-type/liturgy
           :event/date-time (june 3 9)}
 
-         {:service/feast "Moleben & Akathist to the Theotokos"
+         {:event/description "Moleben & Akathist to the Theotokos"
           :service/type :service-type/moleben
           :event/date-time (june 3 18)}]
         (concat
          expected-basic-sat-sun
-         [{:service/feast "Moleben & Akathist to the Theotokos"
+         [{:event/description "Moleben & Akathist to the Theotokos"
            :service/type :service-type/moleben
            :event/date-time (june 17 18)}
 
-          #:service{:date-time (july 4 17),
-                    :type :service-type/confession
-                    :feast "Sunday 5 after Pentecost"}
+          #:event{:date-time (july 4 17),
+                  :type :event-type/confession}
 
           {:service/feast "Sunday 5 after Pentecost"
            :service/type :service-type/vigil
            :event/date-time (july 4 18)}
 
-          #:service{:date-time (july 5 9)
-                    :feast "Sunday 5 after Pentecost",
-                    :type :service-type/confession}
+          #:event{:date-time (july 5 9)
+                  :service/feast "Sunday 5 after Pentecost",
+                  :type :event-type/confession}
 
-          #:service{:date-time (july 5 9 30)
+          #:service{:event/date-time (july 5 9 30)
                     :feast "Sunday 5 after Pentecost",
                     :type :service-type/hours}
 
@@ -100,7 +98,7 @@
            :service/type :service-type/liturgy
            :event/date-time (july 8 8)}
 
-          {:service/feast "Moleben & Akathist to the Theotokos"
+          {:event/description "Moleben & Akathist to the Theotokos"
            :service/type :service-type/moleben
            :event/date-time (july 8 18)}
 
@@ -112,10 +110,15 @@
            :service/type :service-type/liturgy
            :event/date-time (july 11 8)}
 
-          #:service{:date-time (july 11 17),
-                    :type :service-type/confession
-                    :feast ""}
+          #:event{:date-time (july 11 17),
+                  :type :event-type/confession}
 
           {:service/feast "" ;; ""unknown"" b/c calendar doesn't have corresponding Sunday
            :service/type :service-type/vigil
            :event/date-time (july 11 18)}])))
+
+(comment
+  (require '[clojure.spec.alpha :as s] '[church-calendar-sync.spec :as spec])
+
+  (s/explain (s/coll-of ::spec/service) expected-basic-sat-sun)
+  )

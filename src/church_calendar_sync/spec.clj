@@ -72,9 +72,9 @@
       (event-spec)))
 
 (defmethod event-spec :event-type/confession [_]
-  (s/keys :req [:event/date-time
-                :event/description]))
-
+  (s/keys :req [:event/date-time]
+          :opt [:event/description
+                :service/feast]))
 
 (s/def ::service 
   (s/multi-spec event-spec :event/type))

@@ -53,7 +53,7 @@
     :isolated-day/hours 18
     :isolated-day/minutes 0
     :service/type :service-type/moleben
-    :service/feast  "Moleben & Akathist to the Theotokos"}])
+    :event/description  "Moleben & Akathist to the Theotokos"}])
 
 (def ^:const test-day-values
   ["3" "Sts." "Constantine" "and" "Helen" "Div." "Liturgy" "0900" "Moleben" "&" "Akathist" "to" "the" "Theotokos" "1800"])
