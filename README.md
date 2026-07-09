@@ -1,7 +1,6 @@
 # church-calendar-sync
 
-
-Potentially a very-specific-to-St.-Vladimir's way to sync schedules across gCal, Google Sheets, and local
+A very-specific-to-St.-Vladimir's way to sync service schedules across gCal, Google Sheets, and local
 
 Also, an excuse to get back into Clojure!
 
