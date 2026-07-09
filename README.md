@@ -1,14 +1,13 @@
 # church-calendar-sync
 
-A Clojure library designed to ... well, that part is up to you.
 
-## Usage
+Potentially a very-specific-to-St.-Vladimir's way to sync schedules across gCal, Google Sheets, and local
 
-FIXME
+Also, an excuse to get back into Clojure!
 
 ## License
 
-Copyright © 2026 FIXME
+Copyright © 2026 Michael Marsh
 
 This program and the accompanying materials are made available under the
 terms of the Eclipse Public License 2.0 which is available at
