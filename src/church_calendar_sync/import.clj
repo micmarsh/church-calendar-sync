@@ -5,8 +5,9 @@
    [church-calendar-sync.spec :as spec]
    [church-calendar-sync.utils :refer [remove-vals take-until]]
    [clojure.spec.alpha :as s]
-   [clojure.string :as str])
-  (:import [java.time LocalDateTime]))
+   [clojure.string :as str]) 
+  (:import
+    [java.time LocalDateTime]))
 
 (s/def ::services (s/coll-of ::spec/service))
 
@@ -75,9 +76,6 @@
         (and (service? day) (not (moleben? day))) (dissoc :event/description) 
         (not (nil? all-english?)) (assoc :service/all-english? all-english?)))))
 
-(str :foo/bar)
-(namespace :foo/bar)
-
 (defn- start-group? [day]
   (#{:service-type/weekday-evening :service-type/vigil} (:isolated-day/type day)))
 
@@ -106,14 +104,6 @@
                    next-days
                    grouping?))))
 
-(defn sort-by-date [date-key coll]
-  (sort-by #(-> %
-                date-key
-                (.atZone (java.time.ZoneId/of "America/Chicago"))
-                (.toInstant)
-                (.toEpochMilli))
-           coll))
-
 (defn isolated-days->services [days]
   (s/assert (s/coll-of ::isolated-day) days)
   (->> days
@@ -122,7 +112,6 @@
        (group-by-service-cycle)
        (remove empty?)
        (mapcat process-cycle-group)
-       (sort-by-date :event/date-time)
        (s/assert ::services)))
 
 (def ^:const service-type-map

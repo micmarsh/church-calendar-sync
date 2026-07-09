@@ -28,8 +28,7 @@
 
 (defn- clean-for-test-compare [results]
   (->> results
-       (map #(select-keys % all-expected-keys))
-       #_(remove (comp #{:service-type/unknown} :service/type))))
+       (map #(select-keys % all-expected-keys))))
 
 (deftest test-fully-parse-spreadheet
   (testing "test spreadsheet parses to expected results"
