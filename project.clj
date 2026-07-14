@@ -8,5 +8,6 @@
                  [org.clojure/data.json "2.5.2"]
                  [clj-http "3.13.1"]
                  [ring/ring-core "1.15.5"]
-                 [ring/ring-jetty-adapter "1.15.5"]]
+                 [ring/ring-jetty-adapter "1.15.5"]
+                 [camel-snake-kebab "0.4.3"]]
   :repl-options {:init-ns church-calendar-sync.core})

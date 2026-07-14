@@ -6,7 +6,10 @@
    [clojure.data.json :as json]
    [clojure.java.io :as io]
    [clojure.pprint :as pprint]
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [camel-snake-kebab.core :as csk]))
+
+(def decode-key csk/->kebab-case-keyword)
 
 (defn oauth-req-options [redirect-uri client-id]
   {:query-params {"response_type" "code"
@@ -17,21 +20,21 @@
 (defn- query-params->string [options]
   (str/join "&" (map #(str (key %) "=" (val %)) options)))
 
-(defn get-raw-oath-url [{:strs [client_id redirect_uris auth_uri]}]
-  (let [http-options (oauth-req-options (first redirect_uris) client_id)]
-    (str auth_uri "?" (query-params->string (:query-params http-options)))))
+(defn get-raw-oath-url [{:keys [client-id redirect-uris auth-uri]}]
+  (let [http-options (oauth-req-options (first redirect-uris) client-id)]
+    (str auth-uri "?" (query-params->string (:query-params http-options)))))
 
 ;; creds: {str -> str} map, from "web" in parsed file
 ;; lots of potential for reader monads here!
 (defn oauth-token
-  [auth-code {:strs [client_id client_secret redirect_uris token_uri] :as creds}]
-  (client/post token_uri
+  [auth-code {:keys [client-id client-secret redirect-uris token-uri] :as creds}]
+  (client/post token-uri
                {:content-type :x-www-form-urlencoded
                 :accept :json
                 :form-params {"code" auth-code
-                              "client_id" client_id
-                              "client_secret" client_secret
-                              "redirect_uri" (first redirect_uris) ;; need a better way to get local vs. prod, 
+                              "client_id" client-id
+                              "client_secret" client-secret
+                              "redirect_uri" (first redirect-uris) ;; need a better way to get local vs. prod, 
                               "grant_type" "authorization_code"}}))
 
 (defn events
@@ -78,8 +81,8 @@
   (-> creds-resource-path
       io/resource
       slurp
-      json/read-str
-      (get "web")))
+      (json/read-str :key-fn decode-key)
+      (:web)))
 
 (defn repl-login []
   (let [creds-file-json (web-credentials "credentials.json")
@@ -91,3 +94,15 @@
         (let [result @oauth-promise]
           (stop-server!)
           result)))))
+
+(repl-login)
+
+(def result @*1)
+
+(def token-results (json/read-str (:body result)))
+
+(primary-events token-results)
+
+(def many-events (json/read-str (:body *1) :key-fn decode-key))
+
+(last (:items many-events))
