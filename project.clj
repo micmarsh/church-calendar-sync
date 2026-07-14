@@ -6,5 +6,7 @@
   :dependencies [[org.clojure/clojure "1.12.2"]
                  [org.jopendocument/jOpenDocument "1.3"]
                  [org.clojure/data.json "2.5.2"]
-                 [clj-http "3.13.1"]]
+                 [clj-http "3.13.1"]
+                 [ring/ring-core "1.15.5"]
+                 [ring/ring-jetty-adapter "1.15.5"]]
   :repl-options {:init-ns church-calendar-sync.core})

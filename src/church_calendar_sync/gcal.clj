@@ -1,20 +1,12 @@
 (ns church-calendar-sync.gcal
 
   (:require
+   [clj-http.client :as client]
+   [ring.adapter.jetty :as jetty]
    [clojure.data.json :as json]
    [clojure.java.io :as io]
-   [clj-http.client :as client]
+   [clojure.pprint :as pprint]
    [clojure.string :as str]))
-
-
-(def creds (json/read-str (slurp (io/resource "credentials.json"))))
-
-(def redirect-uri (get-in creds ["installed" "redirect_uris" 0]))
-(def client-id (get-in creds ["installed" "client_id"]))
-(def client-secret (get-in creds ["installed" "client_secret"]))
-
-(def ^:const google-oauth-uri
-  "https://accounts.google.com/o/oauth2/v2/auth")
 
 (defn oauth-req-options [redirect-uri client-id]
   {:query-params {"response_type" "code"
@@ -22,26 +14,18 @@
                   "client_id" client-id
                   "scope" "https://www.googleapis.com/auth/calendar"}})
 
-#_(def response (future (client/get google-oauth-uri (options redirect-uri client-id))))
-
 (defn- query-params->string [options]
   (str/join "&" (map #(str (key %) "=" (val %)) options)))
 
-(defn get-raw-oath-url [creds-resource-uri]
-  (let [creds (json/read-str (slurp creds-resource-uri))
-        redirect-uri (get-in creds ["installed" "redirect_uris" 0])
-        client-id (get-in creds ["installed" "client_id"])
-        http-options (oauth-req-options redirect-uri client-id)]
-    (str google-oauth-uri "?" (query-params->string (:query-params http-options)))))
+(defn get-raw-oath-url [{:strs [client_id redirect_uris auth_uri]}]
+  (let [http-options (oauth-req-options (first redirect_uris) client_id)]
+    (str auth_uri "?" (query-params->string (:query-params http-options)))))
 
-(clojure.java.browse/browse-url
- (get-raw-oath-url (io/resource "credentials.json")))
-
-;; creds: {str -> str} map, from "installed" in parsed file
+;; creds: {str -> str} map, from "web" in parsed file
 ;; lots of potential for reader monads here!
-(defn oath-token
-  [auth-code {:strs [client_id client_secret redirect_uris] :as creds}]
-  (client/post "https://oauth2.googleapis.com/token"
+(defn oauth-token
+  [auth-code {:strs [client_id client_secret redirect_uris token_uri] :as creds}]
+  (client/post token_uri
                {:content-type :x-www-form-urlencoded
                 :accept :json
                 :form-params {"code" auth-code
@@ -51,19 +35,59 @@
                               "grant_type" "authorization_code"}}))
 
 (defn events
-  [calendar-id oauth-token]
+  [calendar-id {:strs [access_token token_type]}]
   (client/get (str "https://www.googleapis.com/calendar/v3/calendars/" calendar-id "/events")
-              {:headers {"Authorization" (str "Bearer " oauth-token)}
+              {:headers {"Authorization" (str token_type " " access_token)}
                :content-type :json
                :accept :json}))
 
 (def primary-events (partial events "primary"))
 
+(defn tmp-oauth-handler [oauth-promise creds]
+  (fn [request]
+    (pprint/pprint request)
+    (let [code (-> request
+                   :query-string
+                   (str/split #"&scope=")
+                   first
+                   (str/split #"&code=")
+                   last ;; hacky! relies on order
+                   ring.util.codec/url-decode)]
+      (try 
+        (let [token-resp (oauth-token code creds)]
+          (deliver oauth-promise token-resp)
+          {:status 200
+           :headers {"Content-Type" "text/html"}
+           :body (str token-resp)})
+        (catch Exception ex
+          (deliver oauth-promise ex)
+          (throw ex))))))
+
+(def server (atom nil))
+
+(defn- start-server! [oauth-promise creds]
+  (reset! server
+          (jetty/run-jetty (tmp-oauth-handler oauth-promise creds)
+                           {:port 23456 ;; todo pull from creds!?
+                            :join? false})))
+
+(defn stop-server! []
+  (swap! server (fn [s] (when s (.stop s)) nil)))
+
+(defn- web-credentials [creds-resource-path]
+  (-> creds-resource-path
+      io/resource
+      slurp
+      json/read-str
+      (get "web")))
+
 (defn repl-login []
-  (let [creds-uri (io/resource "credentials.json")
+  (let [creds-file-json (web-credentials "credentials.json")
         oauth-promise (promise)
-        _ (start-server! oauth-promise creds-uri)
-        _ (clojure.java.browse/browse-url (get-raw-oath-url creds-uri))
-        oauth-token-resp @oauth-promise
-        _ (stop-server!)]
-    oauth-token-resp))
+        _ (start-server! oauth-promise creds-file-json)
+        _ (clojure.java.browse/browse-url (get-raw-oath-url creds-file-json))]
+    (reify clojure.lang.IDeref
+      (deref [_] 
+        (let [result @oauth-promise]
+          (stop-server!)
+          result)))))
