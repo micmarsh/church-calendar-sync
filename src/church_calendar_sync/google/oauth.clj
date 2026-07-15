@@ -57,16 +57,19 @@
       :body
       (json/read-str :key-fn decode-key)))
 
+(defn- ring-req->oauth-code [request]
+  (-> request
+      :query-string
+      (str/split #"&scope=")
+      first
+      (str/split #"&code=")
+      last ;; hacky! relies on order
+      ring.util.codec/url-decode))
+
 (defn tmp-oauth-handler [oauth-promise creds]
   (s/assert ::token-request-creds creds)
   (fn [request]
-    (let [code (-> request
-                   :query-string
-                   (str/split #"&scope=")
-                   first
-                   (str/split #"&code=")
-                   last ;; hacky! relies on order
-                   ring.util.codec/url-decode)]
+    (let [code (ring-req->oauth-code request)]
       (try
         (let [token-resp (oauth-token code creds)]
           (deliver oauth-promise token-resp)
@@ -112,7 +115,7 @@
 (s/def ::token-result (s/keys :req-un [::access-token ::expires-in ::scope ::token-type]))
 
 (defn repl-login []
-  (when @server (stop-server!))
+  (stop-server!)
   (let [creds (web-credentials "credentials.json")
         oauth-promise (promise)
         _ (start-server! oauth-promise creds)
@@ -123,9 +126,15 @@
           (stop-server!)
           (s/assert ::token-result result))))))
 
-(s/check-asserts true)
+(comment 
 
-(stop-server!)
-(def res (repl-login))
-@res
+  (s/check-asserts true) 
+
+  (stop-server!)
+  
+  (def res (repl-login))
+  
+  @res
+
+  )
 

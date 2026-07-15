@@ -38,11 +38,13 @@
 (def primary-events (partial events "primary"))
 
 
-(def date-range {:start-date (java.time.LocalDateTime/of 2026 6 1 0 0 )
-                 :end-date (java.time.LocalDateTime/of 2026 6 30  0 0 )})
+(comment 
+  (def date-range {:start-date (java.time.LocalDateTime/of 2026 6 1 0 0 )
+                   :end-date (java.time.LocalDateTime/of 2026 6 30  0 0 )}) 
 
-(primary-events date-range @oauth/res)
+  (primary-events date-range @oauth/res)
+  
+  (def events-resp *1) 
 
-(def events-resp *1)
-
-(json/read-str (:body events-resp) :key-fn csk/->kebab-case-keyword)
+  (json/read-str (:body events-resp) :key-fn csk/->kebab-case-keyword)
+  )

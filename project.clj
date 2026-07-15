@@ -10,5 +10,7 @@
                  [clj-http "3.13.1"]
                  [ring/ring-core "1.15.5"]
                  [ring/ring-jetty-adapter "1.15.5"]
-                 [camel-snake-kebab "0.4.3"]]
+                 [camel-snake-kebab "0.4.3"]
+                 [hiccup "2.0.0"]]
+  :main church-calendar-sync.core
   :repl-options {:init-ns church-calendar-sync.core})
