@@ -1,13 +1,12 @@
-(ns church-calendar-sync.gcal
-
+(ns church-calendar-sync.google.oauth 
   (:require
-   [clj-http.client :as client]
-   [ring.adapter.jetty :as jetty]
-   [clojure.data.json :as json]
-   [clojure.java.io :as io]
-   [clojure.pprint :as pprint]
-   [clojure.string :as str]
-   [camel-snake-kebab.core :as csk]))
+    [camel-snake-kebab.core :as csk]
+    [clj-http.client :as client]
+    [clojure.data.json :as json]
+    [clojure.java.io :as io]
+    [clojure.spec.alpha :as s]
+    [clojure.string :as str]
+    [ring.adapter.jetty :as jetty]))
 
 (def decode-key csk/->kebab-case-keyword)
 
@@ -20,14 +19,31 @@
 (defn- query-params->string [options]
   (str/join "&" (map #(str (key %) "=" (val %)) options)))
 
-(defn get-raw-oath-url [{:keys [client-id redirect-uris auth-uri]}]
+(defn uri-str? [str]
+  (try 
+    (java.net.URL. str)
+    true
+    (catch Exception e false)))
+
+(s/def ::client-id (s/and string? #(str/ends-with? % ".apps.googleusercontent.com")))
+(s/def ::client-secret (s/and string? #(= 35 (count %))))
+
+(s/def ::redirect-uris (s/+ uri-str?))
+(s/def ::auth-uri uri-str?)
+(s/def ::token-uri uri-str?)
+
+(s/def ::login-url-creds (s/keys :req-un [::client-id ::redirect-uris ::auth-uri]))
+
+(defn get-raw-oath-url [{:keys [client-id redirect-uris auth-uri] :as creds}]
+  (s/assert ::login-url-creds creds)
   (let [http-options (oauth-req-options (first redirect-uris) client-id)]
     (str auth-uri "?" (query-params->string (:query-params http-options)))))
 
-;; creds: {str -> str} map, from "web" in parsed file
-;; lots of potential for reader monads here!
+(s/def ::token-request-creds (s/keys :req-un [::client-id ::client-secret ::redirect-uris ::token-uri]))
+
 (defn oauth-token
   [auth-code {:keys [client-id client-secret redirect-uris token-uri] :as creds}]
+  (s/assert ::token-request-creds creds)
   (client/post token-uri
                {:content-type :x-www-form-urlencoded
                 :accept :json
@@ -37,18 +53,9 @@
                               "redirect_uri" (first redirect-uris) ;; need a better way to get local vs. prod, 
                               "grant_type" "authorization_code"}}))
 
-(defn events
-  [calendar-id {:strs [access_token token_type]}]
-  (client/get (str "https://www.googleapis.com/calendar/v3/calendars/" calendar-id "/events")
-              {:headers {"Authorization" (str token_type " " access_token)}
-               :content-type :json
-               :accept :json}))
-
-(def primary-events (partial events "primary"))
-
 (defn tmp-oauth-handler [oauth-promise creds]
+  (s/assert ::token-request-creds creds)
   (fn [request]
-    (pprint/pprint request)
     (let [code (-> request
                    :query-string
                    (str/split #"&scope=")
@@ -56,7 +63,7 @@
                    (str/split #"&code=")
                    last ;; hacky! relies on order
                    ring.util.codec/url-decode)]
-      (try 
+      (try
         (let [token-resp (oauth-token code creds)]
           (deliver oauth-promise token-resp)
           {:status 200
@@ -77,32 +84,40 @@
 (defn stop-server! []
   (swap! server (fn [s] (when s (.stop s)) nil)))
 
+(s/def ::creds (s/merge ::token-request-creds ::login-url-creds))
+
 (defn- web-credentials [creds-resource-path]
+  {:post [(s/assert ::creds %)]}
   (-> creds-resource-path
       io/resource
       slurp
       (json/read-str :key-fn decode-key)
       (:web)))
 
+(s/def ::access-token (s/and string? #(> (count %) 300)))
+(s/def ::expires-in pos-int?)
+(s/def ::scope uri-str?) ;; todo: this may not be right, could end up being csv of scopes or something? Or maybe need a new token per scope?
+(s/def ::token-type #{"Bearer"})
+
+(s/def ::token-result (s/keys :req-un [::access-token ::expires-in ::scope ::token-type]))
+
 (defn repl-login []
-  (let [creds-file-json (web-credentials "credentials.json")
+  (when @server (stop-server!))
+  (let [creds (web-credentials "credentials.json")
         oauth-promise (promise)
-        _ (start-server! oauth-promise creds-file-json)
-        _ (clojure.java.browse/browse-url (get-raw-oath-url creds-file-json))]
+        _ (start-server! oauth-promise creds)
+        _ (clojure.java.browse/browse-url (get-raw-oath-url creds))]
     (reify clojure.lang.IDeref
-      (deref [_] 
+      (deref [_]
         (let [result @oauth-promise]
           (stop-server!)
-          result)))))
+          (-> result
+              :body
+              (json/read-str :key-fn decode-key)
+              (#(s/assert ::token-result %))))))))
 
-(repl-login)
+(s/check-asserts true)
 
-(def result @*1)
-
-(def token-results (json/read-str (:body result)))
-
-(primary-events token-results)
-
-(def many-events (json/read-str (:body *1) :key-fn decode-key))
-
-(last (:items many-events))
+(stop-server!)
+(def res (repl-login))
+@res
