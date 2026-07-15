@@ -3,6 +3,7 @@
     [camel-snake-kebab.core :as csk]
     [clj-http.client :as client]
     [clojure.data.json :as json]
+    [clojure.java.browse :as browse]
     [clojure.java.io :as io]
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
@@ -119,7 +120,7 @@
   (let [creds (web-credentials "credentials.json")
         oauth-promise (promise)
         _ (start-server! oauth-promise creds)
-        _ (clojure.java.browse/browse-url (get-raw-oath-url creds))]
+        _ (browse/browse-url (get-raw-oath-url creds))]
     (reify clojure.lang.IDeref
       (deref [_]
         (let [result @oauth-promise]
