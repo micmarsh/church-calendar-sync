@@ -1,30 +1,48 @@
 (ns church-calendar-sync.google.gcal
 
   (:require
-   [church-calendar-sync.google.oauth :refer [repl-login]]
+   [church-calendar-sync.google.oauth :as oauth]
+   [church-calendar-sync.spec :as spec]
    [clj-http.client :as client]
-   [clojure.data.json :as json]))
+   [clojure.spec.alpha :as s]
+   [clojure.data.json :as json]
+   [camel-snake-kebab.core :as csk]) 
+  (:import
+    [java.time ZoneId]))
 
+(s/def ::start-date ::spec/date-time)
+(s/def ::end-date ::spec/date-time)
+(s/def ::date-range (s/keys :req-un [::start-date ::end-date]))
+
+(def ^:private timezone
+  (ZoneId/of "America/Detroit"))
+
+(defn local-dt->rfc3339 [local-date-time]
+  (-> local-date-time
+      (.atZone timezone)
+      (.format java.time.format.DateTimeFormatter/ISO_OFFSET_DATE_TIME)))
 
 (defn events
-  [calendar-id {:strs [access_token token_type]}]
+  [calendar-id
+   {:keys [start-date end-date] :as params}
+   {:keys [access-token token-type] :as token}]
+  (s/assert ::date-range params)
+  (s/assert ::oauth/token-result token)
   (client/get (str "https://www.googleapis.com/calendar/v3/calendars/" calendar-id "/events")
-              {:headers {"Authorization" (str token_type " " access_token)}
+              {:headers {"Authorization" (str token-type " " access-token)}
                :content-type :json
-               :accept :json}))
+               :accept :json
+               :query-params {"timeMin" (local-dt->rfc3339 start-date)
+                              "timeMax" (local-dt->rfc3339 end-date)}}))
 
 (def primary-events (partial events "primary"))
 
-(repl-login)
 
-(def result @*1)
+(def date-range {:start-date (java.time.LocalDateTime/of 2026 6 1 0 0 )
+                 :end-date (java.time.LocalDateTime/of 2026 6 30  0 0 )})
 
-token-results
+(primary-events date-range @oauth/res)
 
-(def token-results (json/read-str (:body result)))
+(def events-resp *1)
 
-(primary-events token-results)
-
-(def many-events (json/read-str (:body *1) :key-fn decode-key))
-
-(last (:items many-events))
+(json/read-str (:body events-resp) :key-fn csk/->kebab-case-keyword)

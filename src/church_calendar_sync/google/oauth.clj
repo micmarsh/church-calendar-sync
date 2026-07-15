@@ -43,15 +43,19 @@
 
 (defn oauth-token
   [auth-code {:keys [client-id client-secret redirect-uris token-uri] :as creds}]
-  (s/assert ::token-request-creds creds)
-  (client/post token-uri
-               {:content-type :x-www-form-urlencoded
-                :accept :json
-                :form-params {"code" auth-code
-                              "client_id" client-id
-                              "client_secret" client-secret
-                              "redirect_uri" (first redirect-uris) ;; need a better way to get local vs. prod, 
-                              "grant_type" "authorization_code"}}))
+  {:pre [(s/assert ::token-request-creds creds)]
+   :post [(s/assert ::token-result %)]}
+  (-> token-uri
+      (client/post
+       {:content-type :x-www-form-urlencoded
+        :accept :json
+        :form-params {"code" auth-code
+                      "client_id" client-id
+                      "client_secret" client-secret
+                      "redirect_uri" (first redirect-uris) ;; need a better way to get local vs. prod, 
+                      "grant_type" "authorization_code"}})
+      :body
+      (json/read-str :key-fn decode-key)))
 
 (defn tmp-oauth-handler [oauth-promise creds]
   (s/assert ::token-request-creds creds)
@@ -117,13 +121,11 @@
       (deref [_]
         (let [result @oauth-promise]
           (stop-server!)
-          (-> result
-              :body
-              (json/read-str :key-fn decode-key)
-              (#(s/assert ::token-result %))))))))
+          (s/assert ::token-result result))))))
 
 (s/check-asserts true)
 
 (stop-server!)
 (def res (repl-login))
 @res
+

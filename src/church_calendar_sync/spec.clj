@@ -31,7 +31,9 @@
 
 (s/def ::cell (s/keys :req-un [:cell/column :cell/row :cell/text]))
 
-(s/def :event/date-time (partial instance? java.time.LocalDateTime))
+(s/def ::date-time (partial instance? java.time.LocalDateTime))
+
+(s/def :event/date-time ::date-time)
 (s/def :service/feast string?)
 (s/def :event/description string?)
 (s/def :service/all-english? boolean?)
