@@ -76,9 +76,15 @@
 (def server (atom nil))
 
 (defn- start-server! [oauth-promise creds]
+  (s/assert ::token-request-creds creds)
   (reset! server
           (jetty/run-jetty (tmp-oauth-handler oauth-promise creds)
-                           {:port 23456 ;; todo pull from creds!?
+                           {:port (->> creds 
+                                       :redirect-uris
+                                       (filter #(str/includes? % "localhost")) 
+                                       first
+                                       (java.net.URL.)
+                                       (.getPort))
                             :join? false})))
 
 (defn stop-server! []
