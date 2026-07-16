@@ -7,9 +7,8 @@
                  [org.jopendocument/jOpenDocument "1.3"]
                  [org.clojure/data.json "2.5.2"]
                  [org.clojure/core.match "1.1.1"]
-                 [clj-http "3.13.1"]
+                 [http-kit/http-kit "2.8.1"]
                  [ring/ring-core "1.15.5"]
-                 [ring/ring-jetty-adapter "1.15.5"]
                  [camel-snake-kebab "0.4.3"]
                  [hiccup "2.0.0"]]
   :main church-calendar-sync.core

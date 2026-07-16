@@ -1,7 +1,7 @@
 (ns church-calendar-sync.google.oauth 
   (:require
     [camel-snake-kebab.core :as csk]
-    [clj-http.client :as client]
+    [org.httpkit.client :as client]
     [clojure.data.json :as json]
     [clojure.java.browse :as browse]
     [clojure.java.io :as io]
@@ -55,6 +55,7 @@
                       "client_secret" client-secret
                       "redirect_uri" (first redirect-uris) ;; need a better way to get local vs. prod, 
                       "grant_type" "authorization_code"}})
+      deref
       :body
       (json/read-str :key-fn decode-key)))
 

@@ -3,7 +3,7 @@
   (:require
    [church-calendar-sync.google.oauth :as oauth]
    [church-calendar-sync.spec :as spec]
-   [clj-http.client :as client]
+   [org.httpkit.client :as client]
    [clojure.spec.alpha :as s]
    [clojure.data.json :as json]
    [camel-snake-kebab.core :as csk]) 
@@ -28,7 +28,7 @@
    {:keys [access-token token-type] :as token}]
   (s/assert ::date-range params)
   (s/assert ::oauth/token-result token)
-  (client/get (str "https://www.googleapis.com/calendar/v3/calendars/" calendar-id "/events")
+  @(client/get (str "https://www.googleapis.com/calendar/v3/calendars/" calendar-id "/events")
               {:headers {"Authorization" (str token-type " " access-token)}
                :content-type :json
                :accept :json
