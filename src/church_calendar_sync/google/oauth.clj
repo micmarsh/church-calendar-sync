@@ -81,16 +81,23 @@
 
 (def server (atom nil))
 
+(def ^:private has-redirect-uris
+  (s/keys :req-un [::redirect-uris]))
+
+(defn local-port [creds]
+  (s/assert has-redirect-uris creds)
+  (->> creds
+       :redirect-uris
+       (filter #(str/includes? % "localhost"))
+       first
+       (java.net.URL.)
+       (.getPort)))
+
 (defn- start-server! [oauth-promise creds]
   (s/assert ::token-request-creds creds)
   (reset! server
           (server/run-server (tmp-oauth-handler oauth-promise creds)
-                             {:port (->> creds
-                                         :redirect-uris
-                                         (filter #(str/includes? % "localhost"))
-                                         first
-                                         (java.net.URL.)
-                                         (.getPort))
+                             {:port (local-port creds)
                               :join? false})))
 
 (defn stop-server! []
