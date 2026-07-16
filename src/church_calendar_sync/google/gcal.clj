@@ -20,13 +20,16 @@
       (.atZone timezone)
       (.format java.time.format.DateTimeFormatter/ISO_OFFSET_DATE_TIME)))
 
+(def ^:const base-api
+  "https://www.googleapis.com/calendar/v3/")
+
 (defn events
   [calendar-id
    {:keys [start-date end-date] :as params}
    {:keys [access-token token-type] :as token}]
   (s/assert ::date-range params)
   (s/assert ::oauth/token-result token)
-  (-> (str "https://www.googleapis.com/calendar/v3/calendars/" calendar-id "/events") 
+  (-> (str base-api "calendars/" calendar-id "/events") 
       (client/get 
        {:headers {"Authorization" (str token-type " " access-token)}
         :content-type :json

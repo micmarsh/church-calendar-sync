@@ -38,6 +38,7 @@
   (browse/browse-url (str "http://localhost:" port main-view-path)))
 
 (comment
+  (clojure.spec.alpha/check-asserts true)
   (-main)
   (@server)
   )

@@ -5,12 +5,14 @@
 
 (s/def ::sheet #(instance? org.jopendocument.dom.spreadsheet.Sheet %))
 
-(defn sheet-from-file-path [ods-file-name]
+(defn sheet-from-file [file]
   {:post [(s/assert ::sheet %)]}
-  (-> ods-file-name
-      (java.io.File.)
+  (-> file
       (org.jopendocument.dom.spreadsheet.SpreadSheet/createFromFile)
       (.getFirstSheet)))
+
+(defn sheet-from-file-path [ods-file-name]
+  (-> ods-file-name (java.io.File.) (sheet-from-file)))
 
 (defn- cell->text [^org.jopendocument.dom.spreadsheet.Cell cell]
   ;; running into issue (with solution) described here https://stackoverflow.com/a/74628786
