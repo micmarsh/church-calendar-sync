@@ -1,8 +1,8 @@
-(ns church-calendar-sync.utils 
-  (:import [java.time ZoneId]) 
+(ns church-calendar-sync.utils
+  (:import [java.time ZoneId])
   (:require
-    [clojure.data.json :as json]
-    [camel-snake-kebab.core :as csk]))
+   [clojure.data.json :as json]
+   [camel-snake-kebab.core :as csk]))
 
 (defn take-until
   "https://groups.google.com/g/clojure-dev/c/NaAuBz6SpkY?pli=1
@@ -29,3 +29,16 @@
            coll))
 
 (defn parse-json [string] (json/read-str string :key-fn csk/->kebab-case-keyword))
+
+;; should be ready to go if "needed", just add core.async!
+;; maybe make this do promise -> chan / chan -> chan, then make sure blocking deref is implemented on chans for "outside world"?
+;; or just tell "outside world" to deal with it?
+#_(defn fmap [f p]
+  (let [result-p (promise)]
+    (a/go-loop []
+      (if (realized? p)
+        (deliver result-p (f @p))
+        (do
+          (<! (a/timeout 100))
+          (recur))))
+    result-p))

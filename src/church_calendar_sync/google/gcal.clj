@@ -48,5 +48,4 @@
   
   (def events-resp *1) 
 
-  (parse-json (:body events-resp))
   )
