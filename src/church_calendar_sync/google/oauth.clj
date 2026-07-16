@@ -1,13 +1,13 @@
-(ns church-calendar-sync.google.oauth 
+(ns church-calendar-sync.google.oauth
   (:require
-    [camel-snake-kebab.core :as csk]
-    [org.httpkit.client :as client]
-    [clojure.data.json :as json]
-    [clojure.java.browse :as browse]
-    [clojure.java.io :as io]
-    [clojure.spec.alpha :as s]
-    [clojure.string :as str]
-    [ring.adapter.jetty :as jetty]))
+   [camel-snake-kebab.core :as csk]
+   [org.httpkit.client :as client]
+   [org.httpkit.server :as server]
+   [clojure.data.json :as json]
+   [clojure.java.browse :as browse]
+   [clojure.java.io :as io]
+   [clojure.spec.alpha :as s]
+   [clojure.string :as str]))
 
 (def decode-key csk/->kebab-case-keyword)
 
@@ -87,17 +87,17 @@
 (defn- start-server! [oauth-promise creds]
   (s/assert ::token-request-creds creds)
   (reset! server
-          (jetty/run-jetty (tmp-oauth-handler oauth-promise creds)
-                           {:port (->> creds 
-                                       :redirect-uris
-                                       (filter #(str/includes? % "localhost")) 
-                                       first
-                                       (java.net.URL.)
-                                       (.getPort))
-                            :join? false})))
+          (server/run-server (tmp-oauth-handler oauth-promise creds)
+                             {:port (->> creds
+                                         :redirect-uris
+                                         (filter #(str/includes? % "localhost"))
+                                         first
+                                         (java.net.URL.)
+                                         (.getPort))
+                              :join? false})))
 
 (defn stop-server! []
-  (swap! server (fn [s] (when s (.stop s)) nil)))
+  (swap! server (fn [s] (when s (s)) nil)))
 
 (s/def ::creds (s/merge ::token-request-creds ::login-url-creds))
 
