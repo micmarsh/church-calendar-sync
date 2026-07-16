@@ -16,7 +16,7 @@
 (s/def :config/end-row :grid/row)
 (s/def :config/end-column :grid/column)
 
-(s/def ::config
+(s/def ::sheet-config
   (s/keys :req-un
           [:config/day-height
            :config/day-width

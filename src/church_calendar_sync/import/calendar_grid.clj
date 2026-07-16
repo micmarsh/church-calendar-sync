@@ -72,7 +72,7 @@
   (s/+ (s/and vector? (s/+ ::spec/cell))))
 
 (defn group-days [config cell-maps]
-  (s/assert ::spec/config config)
+  (s/assert ::spec/sheet-config config)
   (s/assert (s/+ ::spec/cell) cell-maps)
   (->> cell-maps
        (group-by (partial day-start-coords config))

@@ -1,13 +1,16 @@
 (ns church-calendar-sync.core
   (:require
-   [church-calendar-sync.views :as views]
-   [clojure.core.match :refer [match]]
+   [church-calendar-sync.app :as app]
+   [church-calendar-sync.google.oauth :as oauth]
+   [church-calendar-sync.google.oauth.storage :as storage]
+   [church-calendar-sync.utils :refer [match=]]
    [clojure.java.browse :as browse]
+   [clojure.spec.alpha :as s]
    [hiccup2.core :as h]
-   [ring.util.response :as response]
-   [org.httpkit.server :as hk-server]
+   [org.httpkit.server :as server]
+   [ring.middleware.multipart-params :refer [wrap-multipart-params]]
    [ring.middleware.params :refer [wrap-params]]
-   [ring.middleware.multipart-params :refer [wrap-multipart-params]]))
+   [ring.util.response :as response]))
 
 (defn page [html]
   {:status 200
@@ -16,29 +19,47 @@
            (str (h/html html))
            html)})
 
-(def ^:const port 8888)
-
 (def ^:const upload-view-path "/ods-upload")
 
 (def ^:const main-view-path "/main")
 
-(defn- -base-app-handler [{:keys [request-method uri] :as req}]
-  (match [request-method uri]
-    [:get main-view-path] (page (views/main upload-view-path))
-    [:post upload-view-path] (page (views/processing-upload req))
-    :else (response/not-found "Not found")))
+(def oauth-creds (delay (oauth/web-credentials "credentials.json")))
 
-(def app (-> -base-app-handler wrap-params wrap-multipart-params))
+;; todo real storage lol
+(defonce google-auth (atom nil))
+(extend-protocol storage/TokenStorage
+  clojure.lang.Atom
+  (-get [a] (deref a))
+  (-put [a item] (reset! a item)))
+
+(defn- -base-app-handler
+  [creds]
+  (s/assert ::oauth/creds creds)
+  (let [oauth-redirect-path (oauth/local-redirect-path creds)
+        app-context (assoc creds :upload-path upload-view-path :token-storage google-auth)]
+    (println 'oauth-redirect-path " " oauth-redirect-path)
+    (fn [{:keys [request-method uri] :as req}]
+      (println request-method uri (:params req))
+      (match= [request-method uri] 
+              [:get main-view-path] (page (app/main app-context))
+              [:get oauth-redirect-path] (page (app/oauth-get-token app-context req))
+              [:post upload-view-path] (page (app/processing-upload req))
+              (response/not-found "Not found")))))
+
+(defn app [creds]
+  (-> (-base-app-handler creds) wrap-params wrap-multipart-params))
 
 ;; to be able to shut down in repl testing
 (defonce server (atom nil))
 
 (defn -main [& args]
-  (reset! server (hk-server/run-server app {:port port :join? false}))
-  (browse/browse-url (str "http://localhost:" port main-view-path)))
+  (let [creds @oauth-creds
+        port (oauth/local-port creds)]
+    (reset! server (server/run-server (app creds) {:port port :join? false}))
+    (browse/browse-url (str "http://localhost:" port main-view-path))))
 
 (comment
-  (clojure.spec.alpha/check-asserts true)
-  (-main)
-  (@server)
+  (do
+    (clojure.spec.alpha/check-asserts true)
+    (when-let [s @server] (s))  (-main)) 
   )

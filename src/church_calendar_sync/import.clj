@@ -231,7 +231,7 @@
        (isolated-days->services)))
 
 (defn ods-sheet->services [config sheet]
-  (s/assert ::spec/config config)
+  (s/assert ::spec/sheet-config config)
   (s/assert ::ods/sheet sheet)
   (->> (ods/sheet->clj config sheet)
        (grid/group-days config)

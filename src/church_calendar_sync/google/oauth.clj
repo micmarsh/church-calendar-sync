@@ -6,7 +6,8 @@
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
    [org.httpkit.client :as client]
-   [org.httpkit.server :as server]))
+   [org.httpkit.server :as server]
+   [ring.util.codec :as codec]))
 
 (defn oauth-req-options [redirect-uri client-id]
   {:query-params {"response_type" "code"
@@ -56,14 +57,14 @@
       :body
       parse-json))
 
-(defn- ring-req->oauth-code [request]
+(s/def :ring/query-params (s/map-of string? string?))
+(s/def :ring/with-query-params (s/keys :req-un [:ring/query-params]))
+
+(defn ring-req->oauth-code [request]
+  (s/assert :ring/with-query-params request)
   (-> request
-      :query-string
-      (str/split #"&scope=")
-      first
-      (str/split #"&code=")
-      last ;; hacky! relies on order
-      ring.util.codec/url-decode))
+      :query-params
+      (get "code")))
 
 (defn tmp-oauth-handler [oauth-promise creds]
   (s/assert ::token-request-creds creds)
@@ -84,14 +85,24 @@
 (def ^:private has-redirect-uris
   (s/keys :req-un [::redirect-uris]))
 
-(defn local-port [creds]
-  (s/assert has-redirect-uris creds)
+(defn- local-url-obj [creds]
   (->> creds
        :redirect-uris
        (filter #(str/includes? % "localhost"))
        first
-       (java.net.URL.)
+       (java.net.URL.)))
+
+(defn local-port [creds]
+  (s/assert has-redirect-uris creds)
+  (->> creds
+       (local-url-obj)
        (.getPort)))
+
+(defn local-redirect-path [creds]
+  (s/assert has-redirect-uris creds)
+  (-> creds (local-url-obj) (.getPath) 
+      ;; likely won't need this after adjusting credentials at some point
+      (#(if (empty? %) "/" %))))
 
 (defn- start-server! [oauth-promise creds]
   (s/assert ::token-request-creds creds)
@@ -121,6 +132,9 @@
 (s/def ::req-auth-parts (s/keys :req-un [::access-token ::token-type]))
 
 (s/def ::token-result (s/merge ::req-auth-parts (s/keys :req-un [::expires-in ::scope])))
+
+(s/def ::expires #(instance? java.time.LocalDateTime %))
+(s/def ::expiring-token-result (s/merge (s/keys :req-un [::expires]) ::token-result))
 
 (defn repl-login []
   (stop-server!)
