@@ -36,10 +36,10 @@
 
 (defn- equals-cond-clauses [value forms]
   (mapcat (fn [[val body]]
-            [(list 'clojure.core/= val value) body])
+            [`(= ~val ~value) body])
           (partition 2 forms)))
 
-(defmacro match=
+(defmacro cond=
   "Much less fancy than core.match: compiles to plain `cond` statements so we can
    use ref names in condtionals"
   [value & forms]

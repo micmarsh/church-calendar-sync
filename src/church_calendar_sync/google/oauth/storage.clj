@@ -13,8 +13,11 @@
   (-put this token))
 
 (defn get-token [this]
-  {:post [(s/assert (s/nilable ::oauth/expiring-token-result) %)]}
+  {:post [(do (println %) (s/assert (s/nilable ::oauth/expiring-token-result) %))]}
   (when-let [token (-get this)]
     (when-let [expires (:expires token)] 
       (when (gt-date expires (java.time.LocalDateTime/now))
         token))))
+
+(s/check-asserts true)
+(s/assert (s/nilable ::oauth/expiring-token-result) nil)
