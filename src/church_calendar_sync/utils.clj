@@ -1,7 +1,8 @@
 (ns church-calendar-sync.utils 
   (:import [java.time ZoneId]) 
   (:require
-    [clojure.spec.alpha :as s]))
+    [clojure.data.json :as json]
+    [camel-snake-kebab.core :as csk]))
 
 (defn take-until
   "https://groups.google.com/g/clojure-dev/c/NaAuBz6SpkY?pli=1
@@ -26,3 +27,5 @@
                 (.toInstant)
                 (.toEpochMilli))
            coll))
+
+(defn parse-json [string] (json/read-str string :key-fn csk/->kebab-case-keyword))

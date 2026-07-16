@@ -1,15 +1,12 @@
 (ns church-calendar-sync.google.oauth
   (:require
-   [camel-snake-kebab.core :as csk]
-   [org.httpkit.client :as client]
-   [org.httpkit.server :as server]
-   [clojure.data.json :as json]
+   [church-calendar-sync.utils :refer [parse-json]]
    [clojure.java.browse :as browse]
    [clojure.java.io :as io]
    [clojure.spec.alpha :as s]
-   [clojure.string :as str]))
-
-(def decode-key csk/->kebab-case-keyword)
+   [clojure.string :as str]
+   [org.httpkit.client :as client]
+   [org.httpkit.server :as server]))
 
 (defn oauth-req-options [redirect-uri client-id]
   {:query-params {"response_type" "code"
@@ -57,7 +54,7 @@
                       "grant_type" "authorization_code"}})
       deref
       :body
-      (json/read-str :key-fn decode-key)))
+      parse-json))
 
 (defn- ring-req->oauth-code [request]
   (-> request
@@ -106,7 +103,7 @@
   (-> creds-resource-path
       io/resource
       slurp
-      (json/read-str :key-fn decode-key)
+      (parse-json)
       (:web)))
 
 (s/def ::access-token (s/and string? #(> (count %) 300)))

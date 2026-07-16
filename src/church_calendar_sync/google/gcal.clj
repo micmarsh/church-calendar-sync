@@ -1,12 +1,10 @@
 (ns church-calendar-sync.google.gcal
-
   (:require
    [church-calendar-sync.google.oauth :as oauth]
    [church-calendar-sync.spec :as spec]
-   [org.httpkit.client :as client]
+   [church-calendar-sync.utils :refer [parse-json]]
    [clojure.spec.alpha :as s]
-   [clojure.data.json :as json]
-   [camel-snake-kebab.core :as csk]) 
+   [org.httpkit.client :as client]) 
   (:import
     [java.time ZoneId]))
 
@@ -28,12 +26,16 @@
    {:keys [access-token token-type] :as token}]
   (s/assert ::date-range params)
   (s/assert ::oauth/token-result token)
-  @(client/get (str "https://www.googleapis.com/calendar/v3/calendars/" calendar-id "/events")
-              {:headers {"Authorization" (str token-type " " access-token)}
-               :content-type :json
-               :accept :json
-               :query-params {"timeMin" (local-dt->rfc3339 start-date)
-                              "timeMax" (local-dt->rfc3339 end-date)}}))
+  (-> (str "https://www.googleapis.com/calendar/v3/calendars/" calendar-id "/events") 
+      (client/get 
+       {:headers {"Authorization" (str token-type " " access-token)}
+        :content-type :json
+        :accept :json
+        :query-params {"timeMin" (local-dt->rfc3339 start-date)
+                       "timeMax" (local-dt->rfc3339 end-date)}})
+      (deref)
+      :body
+      parse-json))
 
 (def primary-events (partial events "primary"))
 
@@ -46,5 +48,5 @@
   
   (def events-resp *1) 
 
-  (json/read-str (:body events-resp) :key-fn csk/->kebab-case-keyword)
+  (parse-json (:body events-resp))
   )
