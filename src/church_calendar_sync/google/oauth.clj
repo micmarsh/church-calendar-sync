@@ -98,7 +98,7 @@
 
 (s/def ::creds (s/merge ::token-request-creds ::login-url-creds))
 
-(defn- web-credentials [creds-resource-path]
+(defn web-credentials [creds-resource-path]
   {:post [(s/assert ::creds %)]}
   (-> creds-resource-path
       io/resource
@@ -111,7 +111,9 @@
 (s/def ::scope uri-str?) ;; todo: this may not be right, could end up being csv of scopes or something? Or maybe need a new token per scope?
 (s/def ::token-type #{"Bearer"})
 
-(s/def ::token-result (s/keys :req-un [::access-token ::expires-in ::scope ::token-type]))
+(s/def ::req-auth-parts (s/keys :req-un [::access-token ::token-type]))
+
+(s/def ::token-result (s/merge ::req-auth-parts (s/keys :req-un [::expires-in ::scope])))
 
 (defn repl-login []
   (stop-server!)
