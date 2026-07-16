@@ -6,6 +6,7 @@
    [hiccup2.core :as h]
    [ring.adapter.jetty :as jetty]
    [ring.util.response :as response]
+   [ring.middleware.params :refer [wrap-params]]
    #_[ring.middleware.multipart-params :refer [wrap-multipart-params]]))
 
 (defn page [html]
@@ -27,7 +28,7 @@
     [:post upload-view-path] (page (views/processing-upload req))
     :else (response/not-found "Not found")))
 
-(def app (-> -base-app-handler #_wrap-multipart-params))
+(def app (-> -base-app-handler wrap-params #_wrap-multipart-params))
 
 ;; to be able to shut down in repl testing
 (def server (atom nil))
@@ -38,7 +39,7 @@
 
 (comment
   (-main)
-  
+  (.stop @server)
   )
 
 
