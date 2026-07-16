@@ -22,7 +22,8 @@
    [:input {:type "submit" :value "Upload"}]])
 
 (defn- google-login [ctx]
-  (if-let [auth (storage/get (:token-storage ctx))]
+  (s/assert ::context ctx)
+  (if-let [auth (storage/get-token (:token-storage ctx))]
     [:div
      [:h3 "Logged in to Google"]
      (str auth)]
@@ -67,7 +68,7 @@
   (s/assert ::context context)
   (let [code (oauth/ring-req->oauth-code req)
         token-result (oauth/oauth-token code context)]
-    (storage/put! (:token-storage context) (assoc-expires-time token-result)))
+    (storage/put-token! (:token-storage context) (assoc-expires-time token-result)))
   (main context))
 
 (comment

@@ -8,12 +8,13 @@
   (-get [this])
   (-put [this token]))
 
-(defn put! [this token]
+(defn put-token! [this token]
   (s/assert ::oauth/expiring-token-result token)
   (-put this token))
 
-(defn get [this]
+(defn get-token [this]
   {:post [(s/assert (s/nilable ::oauth/expiring-token-result) %)]}
   (when-let [token (-get this)]
-    (when (gt-date (:expires token) (java.time.LocalDateTime/now))
-      token)))
+    (when-let [expires (:expires token)] 
+      (when (gt-date expires (java.time.LocalDateTime/now))
+        token))))
