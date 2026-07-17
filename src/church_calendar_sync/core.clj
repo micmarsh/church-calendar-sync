@@ -12,16 +12,19 @@
    [ring.middleware.multipart-params :refer [wrap-multipart-params]]
    [ring.middleware.params :refer [wrap-params]]
    [ring.util.response :as response]
-   [time-literals.read-write]))
+   [time-literals.read-write]
+   [church-calendar-sync.google.gcal :as gcal]))
 (time-literals.read-write/print-time-literals-clj!)
 
 
-(defn page [html]
-  {:status 200
-   :headers {"Content-Type" "text/html"}
-   :body (if (vector? html)
-           (str (h/html html))
-           html)})
+(defn page [value]
+  (if (map? value)
+    value
+    {:status 200
+     :headers {"Content-Type" "text/html"}
+     :body (if (vector? value)
+             (str (h/html value))
+             value)}))
 
 (def oauth-creds (delay (oauth/web-credentials "credentials.json")))
 
@@ -42,8 +45,14 @@
     (fn [{:keys [request-method uri] :as req}]
       (cond= [request-method uri]
              [:get app/main-view-path] (page (app/main ctx))
-             [:get oauth-redirect-path] (app/oauth-get-token ctx req)
+
              [:post app/upload-view-path] (page (app/processing-upload req))
+
+             [:get app/calendar-list-path] (page (app/calendar-list ctx))
+             [:post app/select-calendar-path] (page (app/select-calendar ctx req))
+
+             [:get oauth-redirect-path] (app/oauth-get-token ctx req)
+
              (response/not-found "Not found")))))
 
 (defn ->app [creds]
