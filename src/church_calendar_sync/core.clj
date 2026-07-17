@@ -19,8 +19,6 @@
            (str (h/html html))
            html)})
 
-(def ^:const upload-view-path "/ods-upload")
-
 (def ^:const main-view-path "/main")
 
 (def oauth-creds (delay (oauth/web-credentials "credentials.json")))
@@ -42,11 +40,11 @@
       (cond= [request-method uri]
              [:get main-view-path] (page (app/main ctx))
              [:get oauth-redirect-path] (page (app/oauth-get-token ctx req))
-             [:post upload-view-path] (page (app/processing-upload req))
+             [:post app/upload-view-path] (page (app/processing-upload req))
              (response/not-found "Not found")))))
 
 (defn ->app [creds]
-  (let [ctx (assoc creds :upload-path upload-view-path :token-storage google-auth)] 
+  (let [ctx (assoc creds :token-storage google-auth)] 
     (-> (-base-app-handler ctx) wrap-params wrap-multipart-params)))
 
 ;; to be able to shut down in repl testing

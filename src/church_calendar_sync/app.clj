@@ -12,10 +12,10 @@
 
 (def ^:const uploaded-file-name "file")
 
-(s/def ::upload-path string?)
+(def ^:const upload-view-path "/ods-upload")
 
-(defn ods-upload [upload-path]
-  [:form {:action upload-path :method "post" :enctype "multipart/form-data"}
+(def ods-upload
+  [:form {:action upload-view-path :method "post" :enctype "multipart/form-data"}
    "Select file to upload: "
    [:input {:type "file" :name uploaded-file-name}]
    [:p]
@@ -30,13 +30,13 @@
     [:a {:href (oauth/get-raw-oath-url ctx)} "Log in to Google"]))
 
 (s/def ::token-storage #(satisfies? storage/TokenStorage %))
-(s/def ::context (s/merge (s/keys :req-un [::upload-path ::token-storage]) ::oauth/creds))
+(s/def ::context (s/merge (s/keys :req-un [::token-storage]) ::oauth/creds))
 
-(defn main [{:keys [upload-path] :as context}]
+(defn main [context]
   (s/assert ::context context)
   [:body
    [:h1 "Calendar Sync"]
-   (ods-upload upload-path)
+   ods-upload
    (google-login context)
    #_htmx-load])
 
