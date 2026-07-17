@@ -1,9 +1,11 @@
 (ns church-calendar-sync.app
   (:require [church-calendar-sync.google.oauth :as oauth]
             [church-calendar-sync.google.oauth.storage :as storage]
+            [church-calendar-sync.config-storage :as config]
             [church-calendar-sync.import :refer [ods-sheet->services]]
             [church-calendar-sync.import.jopendocument :refer [sheet-from-file]]
-            [clojure.spec.alpha :as s]))
+            [clojure.spec.alpha :as s]
+            [ring.util.response :as response]))
 
 (def ^:const htmx-load
   [:script {:src "https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"
@@ -11,6 +13,8 @@
             :crossorigin "anonymous"}])
 
 (def ^:const uploaded-file-name "file")
+
+(def ^:const main-view-path "/main")
 
 (def ^:const upload-view-path "/ods-upload")
 
@@ -27,10 +31,22 @@
     [:div
      [:h3 "Logged in to Google"]
      (str auth)]
-    [:a {:href (oauth/get-raw-oath-url ctx)} "Log in to Google"]))
+    [:div [:a {:href (oauth/get-raw-oath-url ctx)} "Log in to Google"]]))
 
 (s/def ::token-storage #(satisfies? storage/TokenStorage %))
-(s/def ::context (s/merge (s/keys :req-un [::token-storage]) ::oauth/creds))
+(s/def ::config-storage #(satisfies? config/ConfigStorage %))
+(s/def ::context (s/merge (s/keys :req-un [::token-storage ::config-storage]) ::oauth/creds))
+
+(def ^:const select-calendar-path  "/select-calendar")
+
+(defn- current-calendar [{:keys [config-storage] :as ctx}]
+  (if-let [calendar-id (config/get-config config-storage ::current-calendar)]
+    [:div "Currently will sync to calendar " calendar-id] ;; todo maybe should store readable name and id, display readable name? we'll see
+    [:div [:a {:href select-calendar-path} "Select a calendar to sync to"]]))
+
+(defn select-calendar [ctx]
+  (s/assert ::context ctx)
+  )
 
 (defn main [context]
   (s/assert ::context context)
@@ -38,6 +54,7 @@
    [:h1 "Calendar Sync"]
    ods-upload
    (google-login context)
+   (current-calendar context)
    #_htmx-load])
 
 ;; this is copy-paste of `test-config`:
@@ -64,12 +81,12 @@
 (defn- assoc-expires-time [{:keys [expires-in] :as token-result}]
   (assoc token-result :expires (.plusSeconds (java.time.LocalDateTime/now) expires-in)))
 
-(defn oauth-get-token [context req]
+(defn oauth-get-token [{:keys [token-storage] :as context} req]
   (s/assert ::context context)
   (let [code (oauth/ring-req->oauth-code req)
         token-result (oauth/oauth-token code context)]
-    (storage/put-token! (:token-storage context) (assoc-expires-time token-result)))
-  (main context))
+    (storage/put-token! token-storage (assoc-expires-time token-result)))
+  (response/redirect main-view-path))
 
 (comment
   (.plusSeconds (java.time.LocalDateTime/now) 3600)

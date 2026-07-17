@@ -1,6 +1,7 @@
 (ns church-calendar-sync.core
   (:require
    [church-calendar-sync.app :as app]
+   [church-calendar-sync.config-storage :refer [ConfigStorage]]
    [church-calendar-sync.google.oauth :as oauth]
    [church-calendar-sync.google.oauth.storage :as storage]
    [church-calendar-sync.utils :refer [cond=]]
@@ -22,16 +23,17 @@
            (str (h/html html))
            html)})
 
-(def ^:const main-view-path "/main")
-
 (def oauth-creds (delay (oauth/web-credentials "credentials.json")))
 
 ;; todo real storage lol
-(defonce google-auth (atom nil))
-(extend-protocol storage/TokenStorage
-  clojure.lang.Atom
-  (-get [a] (deref a))
-  (-put [a item] (reset! a item)))
+(defonce storage-atom (atom nil))
+(extend-type clojure.lang.Atom
+  storage/TokenStorage 
+  (-get [a] (:token-storage (deref a)))
+  (-put [a item] (swap! a assoc :token-storage item))
+  ConfigStorage
+  (get-config [a k] (get-in @a [:config k]))
+  (put-config! [a k v] (swap! a assoc-in [:config k] v)))
 
 (defn- -base-app-handler
   [ctx]
@@ -39,13 +41,13 @@
   (let [oauth-redirect-path (oauth/local-redirect-path ctx)]
     (fn [{:keys [request-method uri] :as req}]
       (cond= [request-method uri]
-             [:get main-view-path] (page (app/main ctx))
-             [:get oauth-redirect-path] (page (app/oauth-get-token ctx req))
+             [:get app/main-view-path] (page (app/main ctx))
+             [:get oauth-redirect-path] (app/oauth-get-token ctx req)
              [:post app/upload-view-path] (page (app/processing-upload req))
              (response/not-found "Not found")))))
 
 (defn ->app [creds]
-  (let [ctx (assoc creds :token-storage google-auth)] 
+  (let [ctx (assoc creds :token-storage storage-atom :config-storage storage-atom)] 
     (-> (-base-app-handler ctx) wrap-params wrap-multipart-params)))
 
 ;; to be able to shut down in repl testing
