@@ -12,12 +12,12 @@
   (s/assert ::oauth/expiring-token-result token)
   (-put this token))
 
+;; todo test google api with expired tokens, make sure the actually matter!
 (defn get-token [this]
-  {:post [(do (println %) (s/assert (s/nilable ::oauth/expiring-token-result) %))]}
-  (when-let [token (-get this)]
-    (when-let [expires (:expires token)] 
-      (when (gt-date expires (java.time.LocalDateTime/now))
-        token))))
-
-(s/check-asserts true)
-(s/assert (s/nilable ::oauth/expiring-token-result) nil)
+  (->>
+   (when-let [token (-get this)]
+     (when-let [expires (:expires token)]
+       (when (gt-date expires (java.time.LocalDateTime/now))
+         token)))
+   ;; can't do check in :post b/c nil will fail function assertion!
+   (s/assert (s/nilable ::oauth/expiring-token-result))))

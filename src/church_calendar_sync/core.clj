@@ -34,9 +34,7 @@
   [ctx]
   (s/assert ::app/context ctx)
   (let [oauth-redirect-path (oauth/local-redirect-path ctx)]
-    (println 'oauth-redirect-path " " oauth-redirect-path)
     (fn [{:keys [request-method uri] :as req}]
-      (println request-method uri (:params req))
       (cond= [request-method uri]
              [:get main-view-path] (page (app/main ctx))
              [:get oauth-redirect-path] (page (app/oauth-get-token ctx req))

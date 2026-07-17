@@ -6,8 +6,7 @@
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
    [org.httpkit.client :as client]
-   [org.httpkit.server :as server]
-   [ring.util.codec :as codec]))
+   [org.httpkit.server :as server]))
 
 (defn oauth-req-options [redirect-uri client-id]
   {:query-params {"response_type" "code"
@@ -16,7 +15,9 @@
                   "scope" "https://www.googleapis.com/auth/calendar"}})
 
 (defn- query-params->string [options]
-  (str/join "&" (map #(str (key %) "=" (val %)) options)))
+  (str/join "&" (map #(str (client/url-encode (key %))
+                           "="
+                           (client/url-encode (val %))) options)))
 
 (defn uri-str? [str]
   (try 
