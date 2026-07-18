@@ -66,7 +66,7 @@
   (let [creds @oauth-creds
         port (oauth/local-port creds)]
     (reset! server (server/run-server (->app creds) {:port port :join? false}))
-    (browse/browse-url (str "http://localhost:" port main-view-path))))
+    (browse/browse-url (str "http://localhost:" port app/main-view-path))))
 
 (comment
   (do
@@ -74,3 +74,4 @@
     (@server)
     (-main))
   )
+

@@ -6,7 +6,8 @@
             [church-calendar-sync.import :refer [ods-sheet->services]]
             [church-calendar-sync.import.jopendocument :refer [sheet-from-file]]
             [clojure.spec.alpha :as s]
-            [ring.util.response :as response]))
+            [ring.util.response :as response]
+            [clojure.string :as str]))
 
 (def ^:const htmx-load
   [:script {:src "https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"
@@ -36,9 +37,7 @@
 (defn- google-login [ctx]
   (s/assert ::context ctx)
   (if-let [auth (storage/get-token (:token-storage ctx))]
-    [:div
-     [:div "FOR TESTING: google auth token creds"]
-     (str auth)]
+    [:div "Logged into google successfully"]
     [:div [:a {:href (oauth/get-raw-oath-url ctx)} "Log in to Google"]]))
 
 (s/def ::token-storage #(satisfies? storage/TokenStorage %))
@@ -48,15 +47,15 @@
 (def ^:const calendar-list-path  "/calendar-list")
 
 (defn- current-calendar [{:keys [config-storage] :as ctx}]
-  (if-let [{:keys [summary]} (config/get-config config-storage ::current-calendar)]
-    [:div "Will sync to calendar \"" summary \"] ;; todo store readable name and id, display readable name? we'll see
+  (if-let [{:keys [summary id]} (config/get-config config-storage ::current-calendar)]
+    [:div 
+     [:div "Will sync to calendar \"" [:a {:href (str "https://calendar.google.com/calendar/u/0/r?cid=" id)} summary] \"]
+     [:a {:href calendar-list-path} "select a different calendar"]] ;; todo store readable name and id, display readable name? we'll see
     [:div [:a {:href calendar-list-path} "Select a calendar to sync to"]]))
 
 (def ^:const select-calendar-path "/select-calendar")
 
 (def ^:const select-calendar-param "calendar-selection")
-
-(defonce calendar-cache (atom []))
 
 (defn calendar-list [{:keys [token-storage] :as ctx}]
   (s/assert ::context ctx)
@@ -64,12 +63,11 @@
     ;;todo something on 400 or 500? May want functions to throw and a unified middlware for all error types?
     ;;also there's generally a ton going on in this function in general 
     (let [calendars (->> (gcal/calendars token-result) :body :items (filter (comp #{"owner"} :access-role)))]
-      (reset! calendar-cache calendars)
       [:body
        [:h2 "Select a Calendar to Sync to"]
        [:form {:action select-calendar-path :method "post"}
         (for [{:keys [id summary]} calendars
-              node [[:input {:type "radio" :name select-calendar-param :value id :id id}]
+              node [[:input {:type "radio" :name select-calendar-param :value (str id "," summary) :id id}]
                     [:label {:for id} summary]
                     [:br]]]
           node)
@@ -87,13 +85,9 @@
 
 (defn select-calendar [{:keys [config-storage] :as ctx} {:keys [params] :as req}]
   (s/assert ::context ctx)
-  (let [calendar-id (get params select-calendar-param)]
-    (if-let [calendar (->> @calendar-cache (filter (comp #{calendar-id} :id)) (first))]
-      (do
-        (config/put-config! config-storage ::current-calendar (select-keys calendar [:summary :id]))
-        (response/redirect main-view-path))
-      ;; todo: some kind of error message? Just assume will never happen?
-      (calendar-list ctx))))
+  (let [[calendar-id summary] (-> params (get select-calendar-param) (str/split #","))]
+    (config/put-config! config-storage ::current-calendar {:id calendar-id :summary summary})
+    (response/redirect main-view-path)))
 
 (defn main [context]
   (s/assert ::context context)
