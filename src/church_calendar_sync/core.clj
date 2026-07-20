@@ -46,7 +46,7 @@
       (cond= [request-method uri]
              [:get app/main-view-path] (page (app/main ctx))
 
-             [:post app/upload-view-path] (page (app/processing-upload req))
+             [:post app/upload-view-path] (page (app/processing-upload ctx req))
 
              [:get app/calendar-list-path] (page (app/calendar-list ctx))
              [:post app/select-calendar-path] (page (app/select-calendar ctx req))
