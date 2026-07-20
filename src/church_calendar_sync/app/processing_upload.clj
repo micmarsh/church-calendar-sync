@@ -1,5 +1,7 @@
 (ns church-calendar-sync.app.processing-upload 
   (:require
+    [church-calendar-sync.import :refer [ods-sheet->services]]
+    [church-calendar-sync.import.jopendocument :refer [sheet-from-file]]
     [church-calendar-sync.spec :as spec]
     [clojure.spec.alpha :as s]))
 
@@ -24,6 +26,5 @@
        (:tempfile)
        (sheet-from-file)
        (ods-sheet->services import-sheet-config)
-       ()
        (pstr)
        (vector :body)))
