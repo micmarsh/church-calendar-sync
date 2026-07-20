@@ -4,7 +4,7 @@
                                         isolated-days->services
                                         ods-sheet->services]]
    [church-calendar-sync.import.jopendocument :refer [sheet-from-file-path]]
-   [church-calendar-sync.integration.expected-results :as results]
+   [church-calendar-sync.expected-results :as results]
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
    [clojure.test :refer :all]))

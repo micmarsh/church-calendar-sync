@@ -4,6 +4,7 @@
    [church-calendar-sync.config-storage :refer [ConfigStorage]]
    [church-calendar-sync.google.oauth :as oauth]
    [church-calendar-sync.google.oauth.storage :as storage]
+   [church-calendar-sync.spec :as spec]
    [church-calendar-sync.utils :refer [cond=]]
    [clojure.java.browse :as browse]
    [clojure.spec.alpha :as s]
@@ -12,8 +13,7 @@
    [ring.middleware.multipart-params :refer [wrap-multipart-params]]
    [ring.middleware.params :refer [wrap-params]]
    [ring.util.response :as response]
-   [time-literals.read-write]
-   [church-calendar-sync.google.gcal :as gcal]))
+   [time-literals.read-write]))
 (time-literals.read-write/print-time-literals-clj!)
 
 
@@ -40,7 +40,7 @@
 
 (defn- -base-app-handler
   [ctx]
-  (s/assert ::app/context ctx)
+  (s/assert ::spec/req-ctx ctx)
   (let [oauth-redirect-path (oauth/local-redirect-path ctx)]
     (fn [{:keys [request-method uri] :as req}]
       (cond= [request-method uri]

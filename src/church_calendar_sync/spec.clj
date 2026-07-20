@@ -93,4 +93,3 @@
 (s/def ::token-storage #(satisfies? storage/TokenStorage %))
 (s/def ::config-storage #(satisfies? config/ConfigStorage %))
 (s/def ::req-ctx (s/merge (s/keys :req-un [::token-storage ::config-storage]) ::oauth/creds))
-

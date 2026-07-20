@@ -1,4 +1,4 @@
-(ns church-calendar-sync.integration.expected-results 
+(ns church-calendar-sync.expected-results 
   (:import [java.time LocalDateTime]))
 
 (defn date [month day hour minute]

@@ -1,12 +1,8 @@
 (ns church-calendar-sync.unit.import-test
-  (:require [church-calendar-sync.import :refer [day-strs->isolated-days
-                                                 isolated-days->services]]
-            [church-calendar-sync.import.calendar-grid 
+  (:require [church-calendar-sync.import.calendar-grid
              :refer [consecutive?] :as grid]
-            [church-calendar-sync.integration.expected-results :refer [june]]
-            [clojure.spec.alpha :as s]
-            [clojure.test :refer :all]
-            [clojure.string :as str]))
+            [church-calendar-sync.expected-results :refer [june]]
+            [clojure.test :refer :all]))
 
 (deftest test-consecutive
   (testing "true for sequential days within given month"

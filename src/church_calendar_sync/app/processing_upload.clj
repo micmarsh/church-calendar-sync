@@ -29,12 +29,16 @@
        ((juxt (comp :event/date-time first) (comp :event/date-time last)))
        ((fn [[start end]] {:start-date start :end-date end}))))
 
+(defn filter-services [existing-events services]
+  {:post [(s/assert (s/coll-of ::spec/service) %)]}
+  nil)
+
 (defn- sync-calendars [{:keys [token-storage config-storage] :as ctx} services] 
   (s/assert (s/coll-of ::spec/service) services)
   (let [auth (storage/get-token token-storage)
         calendar-id (:id (config/get-config config-storage :church-calendar-sync.app/current-calendar))
         date-range (services-range services)
-        existing-events (gcal/events calendar-id date-range auth)]
+        existing-events (-> (gcal/events calendar-id date-range auth) :body :items)]
     (->> services
          (filter-services existing-events)
          (add-events calendar-id auth))))
