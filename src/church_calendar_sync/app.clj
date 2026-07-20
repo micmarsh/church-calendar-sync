@@ -1,13 +1,13 @@
 (ns church-calendar-sync.app
-  (:require [church-calendar-sync.config-storage :as config]
+  (:require [church-calendar-sync.app.processing-upload :as processing-upload]
+            [church-calendar-sync.config-storage :as config]
             [church-calendar-sync.google.gcal :as gcal]
             [church-calendar-sync.google.oauth :as oauth]
             [church-calendar-sync.google.oauth.storage :as storage]
-            [church-calendar-sync.import :refer [ods-sheet->services]]
-            [church-calendar-sync.import.jopendocument :refer [sheet-from-file]]
+            [church-calendar-sync.spec :as spec]
             [clojure.spec.alpha :as s]
-            [ring.util.response :as response]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [ring.util.response :as response]))
 
 (def ^:const htmx-load
   [:script {:src "https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"
@@ -23,7 +23,7 @@
     (reset! oauth-redirect nil)
     (or result main-view-path)))
 
-(def ^:const uploaded-file-name "file")
+(def ^:const uploaded-file-name processing-upload/uploaded-file-name)
 
 (def ^:const upload-view-path "/ods-upload")
 
@@ -35,14 +35,10 @@
    [:input {:type "submit" :value "Upload"}]])
 
 (defn- google-login [ctx]
-  (s/assert ::context ctx)
+  (s/assert ::spec/req-ctx ctx)
   (if-let [auth (storage/get-token (:token-storage ctx))]
     [:div "Logged into google successfully"]
     [:div [:a {:href (oauth/get-raw-oath-url ctx)} "Log in to Google"]]))
-
-(s/def ::token-storage #(satisfies? storage/TokenStorage %))
-(s/def ::config-storage #(satisfies? config/ConfigStorage %))
-(s/def ::context (s/merge (s/keys :req-un [::token-storage ::config-storage]) ::oauth/creds))
 
 (def ^:const calendar-list-path  "/calendar-list")
 
@@ -58,7 +54,7 @@
 (def ^:const select-calendar-param "calendar-selection")
 
 (defn calendar-list [{:keys [token-storage] :as ctx}]
-  (s/assert ::context ctx)
+  (s/assert ::spec/req-ctx ctx)
   (if-let [token-result (storage/get-token token-storage)]
     ;;todo something on 400 or 500? May want functions to throw and a unified middlware for all error types?
     ;;also there's generally a ton going on in this function in general 
@@ -84,13 +80,13 @@
 #_(swap! church-calendar-sync.core/storage-atom assoc :config nil)
 
 (defn select-calendar [{:keys [config-storage] :as ctx} {:keys [params] :as req}]
-  (s/assert ::context ctx)
+  (s/assert ::spec/req-ctx ctx)
   (let [[calendar-id summary] (-> params (get select-calendar-param) (str/split #","))]
     (config/put-config! config-storage ::current-calendar {:id calendar-id :summary summary})
     (response/redirect main-view-path)))
 
 (defn main [context]
-  (s/assert ::context context)
+  (s/assert ::spec/req-ctx context)
   [:body
    [:h1 "Calendar Sync"]
    ods-upload
@@ -100,32 +96,13 @@
    (google-login context)
    #_htmx-load])
 
-;; this is copy-paste of `test-config`:
-;; probably want to do some DI and sharing of some kind of file eventually?
-(def ^:const import-sheet-config
-  {:start-row 10
-   :start-column 0
-   :day-width 3
-   :day-height 8
-   :end-column 25
-   :end-row 100})
-
-(defn pstr [object]
-  (with-out-str (clojure.pprint/pprint object)))
-
-(defn processing-upload [{:keys [params] :as req}] 
-  (->> (get params uploaded-file-name)
-       (:tempfile)
-       (sheet-from-file)
-       (ods-sheet->services import-sheet-config)
-       (pstr)
-       (vector :body)))
+(def processing-upload processing-upload/run)
 
 (defn- assoc-expires-time [{:keys [expires-in] :as token-result}]
   (assoc token-result :expires (.plusSeconds (java.time.LocalDateTime/now) expires-in)))
 
 (defn oauth-get-token [{:keys [token-storage] :as context} req]
-  (s/assert ::context context)
+  (s/assert ::spec/req-ctx context)
   (let [code (oauth/ring-req->oauth-code req)
         token-result (oauth/oauth-token code context)]
     (storage/put-token! token-storage (assoc-expires-time token-result)))

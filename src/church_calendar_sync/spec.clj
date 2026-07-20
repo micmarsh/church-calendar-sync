@@ -1,5 +1,8 @@
 (ns church-calendar-sync.spec
   (:require
+   [church-calendar-sync.config-storage :as config]
+   [church-calendar-sync.google.oauth :as oauth]
+   [church-calendar-sync.google.oauth.storage :as storage]
    [clojure.spec.alpha :as s]))
 
 (defn gte-int? [min] (s/and int? (fn [num] (>= num min))))
@@ -86,4 +89,8 @@
 
 (s/def ::service 
   (s/multi-spec event-spec :event/type))
+
+(s/def ::token-storage #(satisfies? storage/TokenStorage %))
+(s/def ::config-storage #(satisfies? config/ConfigStorage %))
+(s/def ::req-ctx (s/merge (s/keys :req-un [::token-storage ::config-storage]) ::oauth/creds))
 

@@ -4,7 +4,8 @@
    [church-calendar-sync.spec :as spec]
    [church-calendar-sync.utils :refer [parse-json]]
    [clojure.spec.alpha :as s]
-   [org.httpkit.client :as client])
+   [org.httpkit.client :as client]
+   [church-calendar-sync.google.oauth.storage :as storage])
   (:import
    [java.time ZoneId]))
 
@@ -56,10 +57,15 @@
   (def date-range {:start-date (java.time.LocalDateTime/of 2026 6 1 0 0)
                    :end-date (java.time.LocalDateTime/of 2026 6 30  0 0)})
 
+  (def token (church-calendar-sync.google.oauth.storage/get-token church-calendar-sync.core/storage-atom))
+
+  token
+
+
   (calendars @oauth/res)
 
   (events "en.usa#holiday@group.v.calendar.google.com" date-range @oauth/res)
 
   (primary-events date-range @oauth/res)
-  
+
   )
