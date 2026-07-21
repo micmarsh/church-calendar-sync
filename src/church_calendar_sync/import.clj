@@ -114,6 +114,7 @@
        (mapcat process-cycle-group)
        (s/assert ::services)))
 
+;; todo move this?
 (def ^:const service-type-map
   {"Div. Liturgy" :service-type/liturgy
    "Evening Services" :service-type/weekday-evening

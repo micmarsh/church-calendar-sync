@@ -1,14 +1,14 @@
 (ns church-calendar-sync.app.processing-upload 
   (:require
     [church-calendar-sync.config-storage :as config]
+    [church-calendar-sync.google.gcal :as gcal]
     [church-calendar-sync.google.oauth.storage :as storage]
     [church-calendar-sync.import :refer [ods-sheet->services]]
+    [church-calendar-sync.import :as import]
     [church-calendar-sync.import.jopendocument :refer [sheet-from-file]]
     [church-calendar-sync.spec :as spec]
     [church-calendar-sync.utils :refer [sort-by-date]]
     [clojure.spec.alpha :as s]
-    [church-calendar-sync.google.gcal :as gcal]
-    [org.httpkit.server :as server]
     [clojure.string :as str]))
 
 ;; this is copy-paste of `test-config`:
@@ -67,23 +67,28 @@
   (s/assert ::events events)
   (group-by (comp #(.toLocalDate %) #(java.time.ZonedDateTime/parse %) :date-time :start) events))
 
+(def service-type->name 
+  (into {} (map (fn [[k v]] [v k]) import/service-type-map)))
+
 (defn- overlapping-words [str1 str2]
   (some (into #{} (map str/lower-case) (str/split str1 #" ")) 
         (map str/lower-case (str/split str2 #" "))))
 
-(defn- desc-matches? [gcal-json service]
+(overlapping-words "Sunday Divine Liturgy ~ Воскресная Божественная Литургия" "Sunday ?? After Pentecost")
+
+(defn desc-matches? [gcal-json service]
   (s/assert :google-json/event gcal-json)
   (s/assert ::spec/service service)
   (some (partial overlapping-words (:summary gcal-json))
-        [(:service/feast service) (:event/description service)]))
+        [(:service/feast service "") (:event/description service "")
+         (service-type->name (:service/type service :service-type/unknown))]))
 
-(defn- matches? [service]
+(defn matches? [service gcal-json]
   (s/assert ::spec/service service)
-  (fn [gcal-json]
-    (s/assert :google-json/event gcal-json)
-    (when-let [date-time-str (-> gcal-json :start :date-time)]
-      (and (= (->date-time date-time-str) (:event/date-time service))
-           (desc-matches? gcal-json service)))))
+  (s/assert :google-json/event gcal-json)
+  (when-let [date-time-str (-> gcal-json :start :date-time)]
+    (and (= (.toLocalDateTime (->date-time date-time-str)) (:event/date-time service))
+         (desc-matches? gcal-json service))))
 
 (defn- ->gcal-json-event [service]
   (throw (Exception. "TODO: THIS")))
@@ -98,7 +103,7 @@
     (s/assert ::spec/service service)
     (let [day (.toLocalDate (:event/date-time service))
           day-bucket (get existing-events day)
-          exists? (filter (matches? service) day-bucket)]
+          exists? (filter (partial matches? service) day-bucket)]
       (filter identity 
               [(when-not exists? (->gcal-json-event service))
                (when (needs-feast? service day-bucket) ;; check if service is liturgy and there's no all-day feast event yet

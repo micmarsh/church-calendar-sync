@@ -1,5 +1,6 @@
 (ns church-calendar-sync.unit.calendar-sync-helpers 
-  (:require [church-calendar-sync.app.processing-upload :refer [gcal-event-index
+  (:require [church-calendar-sync.app.processing-upload :refer [matches?
+                                                                gcal-event-index
                                                                 service->gcal-events]]
             [clojure.spec.alpha :as s]
             [clojure.test :refer :all]))
@@ -54,6 +55,23 @@
   (testing "skips existing events"
     (is (empty?
          (service->gcal-events' {:event-type :event-type/service
-                                 :service/type :service-type/liturgy
-                                 :event/date-time (java.time.LocalDateTime/of 2014 7 6 10 0)
-                                 :service/feast "Sunday ?? After Pentecost"})))))
+                                 :service/type :service-type/vigil
+                                 :event/date-time (java.time.LocalDateTime/of 2014 7 12 18 0)})))))
+
+(deftest test-matches?
+  (s/check-asserts true)
+  (testing "basic match case"
+    (is (matches? {:event-type :event-type/service
+                   :service/type :service-type/liturgy
+                   :event/date-time (java.time.LocalDateTime/of 2014 7 6 10 0)
+                   :service/feast "Sunday ?? After Pentecost"}
+                  {:end {:date-time "2014-07-06T13:00:00-04:00", :time-zone "America/New_York"},
+                   :start {:date-time "2014-07-06T10:00:00-04:00", :time-zone "America/New_York"},
+                   :summary "Sunday Divine Liturgy ~ Воскресная Божественная Литургия"}))))
+
+(comment
+  ( = (java.time.LocalDateTime/of 2014 7 6 10 0)
+   (.toLocalDateTime
+    (church-calendar-sync.app.processing-upload/->date-time "2014-07-06T10:00:00-04:00")))
+  
+  )
