@@ -8,7 +8,8 @@
     [church-calendar-sync.utils :refer [sort-by-date]]
     [clojure.spec.alpha :as s]
     [church-calendar-sync.google.gcal :as gcal]
-    [org.httpkit.server :as server]))
+    [org.httpkit.server :as server]
+    [clojure.string :as str]))
 
 ;; this is copy-paste of `test-config`:
 ;; probably want to do some DI and sharing of some kind of file eventually?
@@ -30,28 +31,15 @@
        ((juxt (comp :event/date-time first) (comp :event/date-time last)))
        ((fn [[start end]] {:start-date start :end-date end}))))
 
-;; goal?
-;;  START WITH JUST ADDING
-;;  * index "existing" by ':start' DAY (drop timezone?) (ideally maybe can grad tz from calendar for parsing later!??)
-;;  * (mapcat(?) func services)
-;;    * func: looks up whole day "bucket"
-;;      * If there's an event in bucket that matches time and type/description <--> summary
-;;        * return nothing
-;;      * if not, return a new data structure {:add-event {...data...}}
-;;      * ALSO, if feast is missing (service is liturgy and there's not an all day event that matches name)
-;;        also include {:add-feast {....}}
-;;  * actually have above return "start, end, summary"
-;;   
-
-(defn ->date-time [str]
+(defn ->date-time [input]
   (try
-    (java.time.ZonedDateTime/parse str)
-    (catch java.time.format.DateTimeParseException e)))
+    (java.time.ZonedDateTime/parse input)
+    (catch Exception e)))
 
-(defn ->date [str]
+(defn ->date [input]
   (try
-    (java.time.LocalDate/parse str)
-    (catch java.time.format.DateTimeParseException e)))
+    (java.time.LocalDate/parse input)
+    (catch Exception e)))
 
 (s/def :google-json/date-time ->date-time)
 (s/def :google-json/time-zone #{"America/New_York" "America/Chicago"})
@@ -64,11 +52,14 @@
 (s/def :google-json-full-day/start ->date)
 (s/def :google-json-full-day/end ->date)
 
+(def ^:private full-day-event
+  (s/keys :req-un [:google-json-full-day/start :google-json-full-day/end
+                   :google-json/summary]))
+
 (s/def :google-json/event 
   (s/or :date-time (s/keys :req-un [:google-json/end :google-json/start 
                                     :google-json/summary])
-        :full-day (s/keys :req-un [:google-json-full-day/start :google-json-full-day/end 
-                                   :google-json/summary])))
+        :full-day full-day-event))
 
 (s/def ::events (s/coll-of :google-json/event))
 
@@ -76,19 +67,30 @@
   (s/assert ::events events)
   (group-by (comp #(.toLocalDate %) #(java.time.ZonedDateTime/parse %) :date-time :start) events))
 
+(defn- overlapping-words [str1 str2]
+  (some (into #{} (map str/lower-case) (str/split str1 #" ")) 
+        (map str/lower-case (str/split str2 #" "))))
+
+(defn- desc-matches? [gcal-json service]
+  (s/assert :google-json/event gcal-json)
+  (s/assert ::spec/service service)
+  (some (partial overlapping-words (:summary gcal-json))
+        [(:service/feast service) (:event/description service)]))
+
 (defn- matches? [service]
   (s/assert ::spec/service service)
   (fn [gcal-json]
     (s/assert :google-json/event gcal-json)
     (when-let [date-time-str (-> gcal-json :start :date-time)]
-      (and (= (->date-time date-time-str) (::spec/date-time service))
-           (throw (Exception. "TODO: THIS"))))))
+      (and (= (->date-time date-time-str) (:event/date-time service))
+           (desc-matches? gcal-json service)))))
 
 (defn- ->gcal-json-event [service]
   (throw (Exception. "TODO: THIS")))
 
 (defn- needs-feast? [service day-bucket]
-  (throw (Exception. "TODO: THIS")))
+  (and (= :service-type/liturgy (:service/type service))
+       (empty? (filter #(and (s/valid? full-day-event %) (desc-matches? % service)) day-bucket))))
 
 (defn service->gcal-events [existing-events]
   (s/assert (s/map-of #(instance? java.time.LocalDate %) ::events) existing-events)
