@@ -6,7 +6,7 @@
             [clojure.test :refer :all]))
 
 (def service->gcal-events'
-  (service->gcal-events 
+  (partial service->gcal-events 
    (gcal-event-index
     [{:end {:date-time "2014-07-09T19:00:00-04:00", :time-zone "America/New_York"},
       :start {:date-time "2014-07-09T18:00:00-04:00", :time-zone "America/New_York"},
@@ -33,16 +33,16 @@
 (deftest test-single-service-gcal-events
   (s/check-asserts true)
   (testing "basic mapping of missing service"
-    (is (= [{:end {:date-time "2018-09-16T18:00:00-04:00", :time-zone "America/New_York"},
-             :start {:date-time "2018-09-16T20:00:00-04:00", :time-zone "America/New_York"},
+    (is (= [{:start {:date-time "2018-09-16T18:00:00-04:00", :time-zone "America/New_York"},
+             :end {:date-time "2018-09-16T20:00:00-04:00", :time-zone "America/New_York"},
              :summary "Evening Services"}]
            (service->gcal-events' {:event-type :event-type/service
                                    :service/type :service-type/weekday-evening
                                    :event/date-time (java.time.LocalDateTime/of 2018 9 16 18 0)
                                    :service/feast "Holy Prophet Moses"}))))
   (testing "create all-day feast for liturgy"
-    (is (= [{:end {:date-time "2018-09-17T08:00:00-04:00", :time-zone "America/New_York"},
-             :start {:date-time "2018-09-17T10:00:00-04:00", :time-zone "America/New_York"},
+    (is (= [{:start {:date-time "2018-09-17T08:00:00-04:00", :time-zone "America/New_York"} 
+             :end {:date-time "2018-09-17T10:00:00-04:00", :time-zone "America/New_York"},
              :summary "Div. Liturgy"}
             {:end {:date "2018-09-17"},
              :start {:date "2018-09-17"},
