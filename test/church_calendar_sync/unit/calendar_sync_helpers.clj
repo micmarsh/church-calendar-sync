@@ -51,7 +51,6 @@
                                    :service/type :service-type/liturgy
                                    :event/date-time (java.time.LocalDateTime/of 2018 9 17 8 0)
                                    :service/feast "Holy Prophet Moses"}))))
-
   (testing "skips existing events"
     (is (empty?
          (service->gcal-events' {:event-type :event-type/service

@@ -2,6 +2,7 @@
   (:require
     [church-calendar-sync.config-storage :as config]
     [church-calendar-sync.google.gcal :as gcal]
+    [church-calendar-sync.google.oauth :as oauth]
     [church-calendar-sync.google.oauth.storage :as storage]
     [church-calendar-sync.import :refer [ods-sheet->services]]
     [church-calendar-sync.import :as import]
@@ -129,6 +130,9 @@
                 :summary (:service/feast service)})])))
 
 (defn- add-events [calendar-id auth gcal-events]
+  (s/assert string? calendar-id)
+  (s/assert ::oauth/token-result auth)
+  (s/assert ::events gcal-events)
   (throw (Exception. "TODO: THIS")))
 
 (defn- sync-calendars [{:keys [token-storage config-storage] :as ctx} services] 
