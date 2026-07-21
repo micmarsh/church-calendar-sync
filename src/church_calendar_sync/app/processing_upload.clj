@@ -103,7 +103,7 @@
     (s/assert ::spec/service service)
     (let [day (.toLocalDate (:event/date-time service))
           day-bucket (get existing-events day)
-          exists? (filter (partial matches? service) day-bucket)]
+          exists? (some (partial matches? service) day-bucket)]
       (filter identity 
               [(when-not exists? (->gcal-json-event service))
                (when (needs-feast? service day-bucket) ;; check if service is liturgy and there's no all-day feast event yet
