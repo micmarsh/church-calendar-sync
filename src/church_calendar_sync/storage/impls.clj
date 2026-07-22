@@ -2,10 +2,9 @@
   (:require
     [church-calendar-sync.google.oauth.storage :as storage]
     [church-calendar-sync.storage.config :refer [ConfigStorage]]
-    [clojure.edn :as edn]
+    [church-calendar-sync.utils :refer [parse-edn]]
     [clojure.java.io :as io]))
 
-;; todo move these somewhere else?
 (defonce storage-atom (atom nil))
 (extend-type clojure.lang.Atom
   storage/TokenStorage 
@@ -19,7 +18,7 @@
 (defn- file-contents [^java.io.File f]
   (-> f (.getParentFile) (.mkdirs))
   (.createNewFile f)
-  (edn/read-string (slurp (.getPath f))))
+  (parse-edn (slurp (.getPath f))))
 
 (extend-type java.io.File
   storage/TokenStorage

@@ -1,8 +1,10 @@
 (ns church-calendar-sync.utils
-  (:import [java.time ZoneId])
   (:require
+   [camel-snake-kebab.core :as csk]
    [clojure.data.json :as json]
-   [camel-snake-kebab.core :as csk]))
+   [clojure.edn :as edn]
+   [time-literals.read-write :as read-write])
+  (:import [java.time ZoneId]))
 
 (defn take-until
   "https://groups.google.com/g/clojure-dev/c/NaAuBz6SpkY?pli=1
@@ -33,6 +35,7 @@
   (sort-by (comp millis date-key) coll))
 
 (defn parse-json [string] (json/read-str string :key-fn csk/->kebab-case-keyword))
+(def parse-edn (partial edn/read-string {:readers read-write/tags} ))
 
 (defn- equals-cond-clauses [value forms]
   (mapcat (fn [[val body]]
