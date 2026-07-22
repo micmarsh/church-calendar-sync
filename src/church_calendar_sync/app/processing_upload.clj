@@ -100,55 +100,54 @@
    :service-type/weekday-evening (Duration/ofHours 2)})
 ;; filter out unknowns/confession events before we even get here?
 
-(def default-tz (java.time.ZoneId/of "America/New_York"))
-
-(defn- ->gcal-json-event [service]
+(defn- ->gcal-json-event [^java.time.ZoneId tz service]
   (let [start-time (:event/date-time service)
         type (:service/type service)]
     {:start {:date-time (gcal/local-dt->rfc3339 start-time)
-             :time-zone (.getId default-tz)} ;; what to do about this? config DI? constant somewhere?
+             :time-zone (.getId tz)} ;; what to do about this? config DI? constant somewhere?
      :end {:date-time (gcal/local-dt->rfc3339 (.plus start-time (service-lengths type))) 
-           :time-zone (.getId default-tz)}
+           :time-zone (.getId tz)}
      :summary (service-type->name type)}))
 
 (defn- needs-feast? [service day-bucket]
   (and (= :service-type/liturgy (:service/type service))
        (empty? (filter #(and (s/valid? full-day-event %) (desc-matches? % service)) day-bucket))))
 
-(defn service->gcal-events [existing-events service]
+(defn service->gcal-events [tz existing-events service]
   (s/assert (s/map-of #(instance? java.time.LocalDate %) ::events) existing-events) 
   (s/assert ::spec/service service)
   (let [day (.toLocalDate (:event/date-time service))
         day-bucket (get existing-events day)
         exists? (some (partial matches? service) day-bucket)]
     (filter identity 
-            [(when-not exists? (->gcal-json-event service))
+            [(when-not exists? (->gcal-json-event tz service))
              (when (needs-feast? service day-bucket) ;; check if service is liturgy and there's no all-day feast event yet
                {:start {:date (.format day java.time.format.DateTimeFormatter/ISO_DATE)}
                 :end {:date (.format day java.time.format.DateTimeFormatter/ISO_DATE)}
                 :summary (:service/feast service)})])))
 
-(defn- add-events [calendar-id auth gcal-events]
-  (s/assert string? calendar-id)
+(defn- add-events [calendar auth gcal-events]
+  ;(s/assert map? calendar) todo real spec?
   (s/assert ::oauth/token-result auth)
   (s/assert ::events gcal-events)
   (throw (Exception. "TODO: THIS")))
 
-(defn- prepare-add-events [calendar-id auth services]
-  (s/assert string? calendar-id)
+(defn- prepare-add-events [calendar auth services]
+  ;(s/assert string? calendar) todo real spec?
   (s/assert ::oauth/token-result auth)
   (let [date-range (services-range services)
-        existing-events (-> (gcal/events calendar-id date-range auth) :body :items gcal-event-index)]
-    (mapcat (partial service->gcal-events existing-events) services)))
+        existing-events (-> (gcal/events (:id calendar) date-range auth) :body :items gcal-event-index)
+        tz (java.time.ZoneId/of (:time-zone calendar))]
+    (mapcat (partial service->gcal-events tz existing-events) services)))
 
 (defn- sync-calendars [{:keys [token-storage config-storage] :as ctx} services] 
   (s/assert (s/coll-of ::spec/service) services)
   (let [auth (storage/get-token token-storage)
-        calendar-id (:id (config/get-config config-storage :church-calendar-sync.app/current-calendar))] 
+        calendar (config/get-config config-storage :church-calendar-sync.app/current-calendar)] 
     (->> services
          (filter (comp service-lengths :service/type)) ;; todo
-         (prepare-add-events calendar-id auth)
-         #_(add-events calendar-id auth))))
+         (prepare-add-events calendar auth)
+         #_(add-events calendar auth))))
 
 (defn run [ctx {:keys [params] :as req}]
   (s/assert ::spec/req-ctx ctx)

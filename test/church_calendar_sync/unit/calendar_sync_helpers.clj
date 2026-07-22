@@ -6,29 +6,30 @@
             [clojure.test :refer :all]))
 
 (def service->gcal-events'
-  (partial service->gcal-events 
-   (gcal-event-index
-    [{:end {:date-time "2014-07-09T19:00:00-04:00", :time-zone "America/New_York"},
-      :start {:date-time "2014-07-09T18:00:00-04:00", :time-zone "America/New_York"},
-      :summary "Akathist for the Ill ~ Акафист для болящих"}
-     {:end {:date-time "2016-09-17T17:00:00-04:00", :time-zone "America/New_York"},
-      :start {:date-time "2016-09-17T15:00:00-04:00", :time-zone "America/New_York"},
-      :summary "Fr. Gregory Office Hours by Appointment"}
-     {:end {:date-time "2014-07-12T21:00:00-04:00", :time-zone "America/New_York"},
-      :start {:date-time "2014-07-12T18:00:00-04:00", :time-zone "America/New_York"},
-      :summary "Vigil ~ Бдение"}
-     {:end {:date-time "2016-09-24T18:00:00-04:00", :time-zone "America/New_York"},
-      :start {:date-time "2016-09-24T17:00:00-04:00", :time-zone "America/New_York"},
-      :summary "Church School -or- Confession ~ Церковная школа -или- Исповедь: calendly.com/ogrisha"}
-     {:end {:date-time "2014-07-06T10:00:00-04:00", :time-zone "America/New_York"},
-      :start {:date-time "2014-07-06T09:00:00-04:00", :time-zone "America/New_York"},
-      :summary "Confession by Appointment ~ Исповедь (по предварительной договоренности): calendly.com/ogrisha"}
-     {:end {:date-time "2017-01-01T09:00:00-05:00", :time-zone "America/New_York"},
-      :start {:date-time "2017-01-01T08:00:00-05:00", :time-zone "America/New_York"},
-      :summary "Moleben to St. Vladimir ~ Молебен св. Владимиру"}
-     {:end {:date-time "2014-07-06T13:00:00-04:00", :time-zone "America/New_York"},
-      :start {:date-time "2014-07-06T10:00:00-04:00", :time-zone "America/New_York"},
-      :summary "Sunday Divine Liturgy ~ Воскресная Божественная Литургия"}])))
+  (partial service->gcal-events
+           (java.time.ZoneId/of "America/New_York")
+           (gcal-event-index
+            [{:end {:date-time "2014-07-09T19:00:00-04:00", :time-zone "America/New_York"},
+              :start {:date-time "2014-07-09T18:00:00-04:00", :time-zone "America/New_York"},
+              :summary "Akathist for the Ill ~ Акафист для болящих"}
+             {:end {:date-time "2016-09-17T17:00:00-04:00", :time-zone "America/New_York"},
+              :start {:date-time "2016-09-17T15:00:00-04:00", :time-zone "America/New_York"},
+              :summary "Fr. Gregory Office Hours by Appointment"}
+             {:end {:date-time "2014-07-12T21:00:00-04:00", :time-zone "America/New_York"},
+              :start {:date-time "2014-07-12T18:00:00-04:00", :time-zone "America/New_York"},
+              :summary "Vigil ~ Бдение"}
+             {:end {:date-time "2016-09-24T18:00:00-04:00", :time-zone "America/New_York"},
+              :start {:date-time "2016-09-24T17:00:00-04:00", :time-zone "America/New_York"},
+              :summary "Church School -or- Confession ~ Церковная школа -или- Исповедь: calendly.com/ogrisha"}
+             {:end {:date-time "2014-07-06T10:00:00-04:00", :time-zone "America/New_York"},
+              :start {:date-time "2014-07-06T09:00:00-04:00", :time-zone "America/New_York"},
+              :summary "Confession by Appointment ~ Исповедь (по предварительной договоренности): calendly.com/ogrisha"}
+             {:end {:date-time "2017-01-01T09:00:00-05:00", :time-zone "America/New_York"},
+              :start {:date-time "2017-01-01T08:00:00-05:00", :time-zone "America/New_York"},
+              :summary "Moleben to St. Vladimir ~ Молебен св. Владимиру"}
+             {:end {:date-time "2014-07-06T13:00:00-04:00", :time-zone "America/New_York"},
+              :start {:date-time "2014-07-06T10:00:00-04:00", :time-zone "America/New_York"},
+              :summary "Sunday Divine Liturgy ~ Воскресная Божественная Литургия"}])))
 
 (deftest test-single-service-gcal-events
   (s/check-asserts true)

@@ -7,7 +7,8 @@
             [church-calendar-sync.spec :as spec]
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
-            [ring.util.response :as response]))
+            [ring.util.response :as response]
+            [clojure.edn :as edn]))
 
 (def ^:const htmx-load
   [:script {:src "https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"
@@ -62,8 +63,8 @@
       [:body
        [:h2 "Select a Calendar to Sync to"]
        [:form {:action select-calendar-path :method "post"}
-        (for [{:keys [id summary]} calendars
-              node [[:input {:type "radio" :name select-calendar-param :value (str id "," summary) :id id}]
+        (for [{:keys [id summary] :as cal} calendars
+              node [[:input {:type "radio" :name select-calendar-param :value (str (select-keys cal [:id :summary :time-zone])) :id id}]
                     [:label {:for id} summary]
                     [:br]]]
           node)
@@ -80,10 +81,9 @@
 #_(swap! church-calendar-sync.core/storage-atom assoc :config nil)
 
 (defn select-calendar [{:keys [config-storage] :as ctx} {:keys [params] :as req}]
-  (s/assert ::spec/req-ctx ctx)
-  (let [[calendar-id summary] (-> params (get select-calendar-param) (str/split #","))]
-    (config/put-config! config-storage ::current-calendar {:id calendar-id :summary summary})
-    (response/redirect main-view-path)))
+  (s/assert ::spec/req-ctx ctx) 
+  (config/put-config! config-storage ::current-calendar (-> params (get select-calendar-param) (edn/read-string)))
+  (response/redirect main-view-path))
 
 (defn main [context]
   (s/assert ::spec/req-ctx context)
