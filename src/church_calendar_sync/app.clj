@@ -28,12 +28,14 @@
 
 (def ^:const upload-view-path "/ods-upload")
 
-(def ods-upload
-  [:form {:action upload-view-path :method "post" :enctype "multipart/form-data"}
-   "Select file to upload: "
-   [:input {:type "file" :name uploaded-file-name}]
-   [:p]
-   [:input {:type "submit" :value "Upload"}]])
+(defn ods-upload [{:keys [token-storage]}]
+  (let [auth (storage/get-token token-storage)]
+    [:form {:action upload-view-path :method "post" :enctype "multipart/form-data"}
+     "Select file to upload: "
+     [:input {:type "file" :name uploaded-file-name}]
+     [:p]
+     [:input (cond-> {:type "submit" :value "Upload"}
+               (nil? auth) (assoc :disabled true))]]))
 
 (defn- google-login [ctx]
   (s/assert ::spec/req-ctx ctx)
@@ -89,7 +91,7 @@
   (s/assert ::spec/req-ctx context)
   [:body
    [:h1 "Calendar Sync"]
-   ods-upload
+   (ods-upload context)
    (current-calendar context)
    [:br]
    [:br]

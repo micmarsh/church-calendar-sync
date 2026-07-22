@@ -11,6 +11,7 @@
                  [ring/ring-core "1.15.5"]
                  [camel-snake-kebab "0.4.3"]
                  [hiccup "2.0.0"]
-                 [com.widdindustries/time-literals "0.1.10"]]
+                 [com.widdindustries/time-literals "0.1.10"]
+                 [org.clojure/core.async "1.9.865"]]
   :main church-calendar-sync.core
   :repl-options {:init-ns church-calendar-sync.core})

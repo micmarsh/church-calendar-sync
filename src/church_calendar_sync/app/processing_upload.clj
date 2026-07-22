@@ -33,40 +33,9 @@
        ((juxt (comp :event/date-time first) (comp :event/date-time last)))
        ((fn [[start end]] {:start-date start :end-date end}))))
 
-(defn ->date-time [input]
-  (try
-    (java.time.ZonedDateTime/parse input)
-    (catch Exception e)))
-
-(defn ->date [input]
-  (try
-    (java.time.LocalDate/parse input)
-    (catch Exception e)))
-
-(s/def :google-json/date-time ->date-time)
-(s/def :google-json/time-zone #{"America/New_York" "America/Chicago"})
-(s/def :google-json/zoned-date-time (s/keys :req-un [:google-json/date-time :google-json/time-zone]))
-
-(s/def :google-json/summary string?)
-(s/def :google-json/start :google-json/zoned-date-time)
-(s/def :google-json/end :google-json/zoned-date-time)
-
-(s/def :google-json-full-day/start ->date)
-(s/def :google-json-full-day/end ->date)
-
-(def ^:private full-day-event
-  (s/keys :req-un [:google-json-full-day/start :google-json-full-day/end
-                   :google-json/summary]))
-
-(s/def :google-json/event
-  (s/or :date-time (s/keys :req-un [:google-json/end :google-json/start
-                                    :google-json/summary])
-        :full-day full-day-event))
-
-(s/def ::events (s/coll-of :google-json/event))
 
 (defn gcal-event-index [events]
-  (s/assert ::events events)
+  (s/assert ::gcal/events events)
   (group-by (comp #(.toLocalDate %) #(java.time.ZonedDateTime/parse %) :date-time :start) events))
 
 (def service-type->name 
@@ -79,7 +48,7 @@
 (overlapping-words "Sunday Divine Liturgy ~ Воскресная Божественная Литургия" "Sunday ?? After Pentecost")
 
 (defn desc-matches? [gcal-json service]
-  (s/assert :google-json/event gcal-json)
+  (s/assert ::gcal/event gcal-json)
   (s/assert ::spec/service service)
   (some (partial overlapping-words (:summary gcal-json))
         [(:service/feast service "") (:event/description service "")
@@ -87,9 +56,9 @@
 
 (defn matches? [service gcal-json]
   (s/assert ::spec/service service)
-  (s/assert :google-json/event gcal-json)
+  (s/assert ::gcal/event gcal-json)
   (when-let [date-time-str (-> gcal-json :start :date-time)]
-    (and (= (.toLocalDateTime (->date-time date-time-str)) (:event/date-time service))
+    (and (= (.toLocalDateTime (gcal/->date-time date-time-str)) (:event/date-time service))
          (desc-matches? gcal-json service))))
 
 (def service-lengths
@@ -111,10 +80,10 @@
 
 (defn- needs-feast? [service day-bucket]
   (and (= :service-type/liturgy (:service/type service))
-       (empty? (filter #(and (s/valid? full-day-event %) (desc-matches? % service)) day-bucket))))
+       (empty? (filter #(and (s/valid? gcal/full-day-event %) (desc-matches? % service)) day-bucket))))
 
 (defn service->gcal-events [tz existing-events service]
-  (s/assert (s/map-of #(instance? java.time.LocalDate %) ::events) existing-events) 
+  (s/assert (s/map-of #(instance? java.time.LocalDate %) ::gcal/events) existing-events) 
   (s/assert ::spec/service service)
   (let [day (.toLocalDate (:event/date-time service))
         day-bucket (get existing-events day)
@@ -129,14 +98,20 @@
 (defn- add-events [calendar auth gcal-events]
   ;(s/assert map? calendar) todo real spec?
   (s/assert ::oauth/token-result auth)
-  (s/assert ::events gcal-events)
-  (throw (Exception. "TODO: THIS")))
+  (s/assert ::gcal/events gcal-events)
+  (gcal/insert-events (:id calendar) auth 
+                      ;; TAKE 5 is for testing purposes
+                      (take 5 gcal-events)))
 
 (defn- prepare-add-events [calendar auth services]
   ;(s/assert string? calendar) todo real spec?
   (s/assert ::oauth/token-result auth)
   (let [date-range (services-range services)
-        existing-events (-> (gcal/events (:id calendar) date-range auth) :body :items gcal-event-index)
+        existing-events (->> (gcal/events (:id calendar) date-range auth)
+                             :body :items
+                             ;; these aren't relevant for filtering anyway
+                             (filter (comp gcal/eastern? :time-zone))
+                             gcal-event-index)
         tz (java.time.ZoneId/of (:time-zone calendar))]
     (mapcat (partial service->gcal-events tz existing-events) services)))
 
@@ -147,7 +122,7 @@
     (->> services
          (filter (comp service-lengths :service/type)) ;; todo
          (prepare-add-events calendar auth)
-         #_(add-events calendar auth))))
+         (add-events calendar auth))))
 
 (defn run [ctx {:keys [params] :as req}]
   (s/assert ::spec/req-ctx ctx)
