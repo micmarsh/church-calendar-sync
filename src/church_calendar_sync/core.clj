@@ -63,6 +63,7 @@
 (defonce server (atom (fn [])))
 
 (defn -main [& args]
+  (clojure.spec.alpha/check-asserts true)
   (let [creds @oauth-creds
         port (oauth/local-port creds)]
     (reset! server (server/run-server (->app creds) {:port port :join? false}))
@@ -70,7 +71,6 @@
 
 (comment
   (do
-    (clojure.spec.alpha/check-asserts true)
     (@server)
     (-main))
   )

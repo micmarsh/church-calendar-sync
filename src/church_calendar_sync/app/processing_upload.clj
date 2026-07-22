@@ -59,8 +59,8 @@
   (s/keys :req-un [:google-json-full-day/start :google-json-full-day/end
                    :google-json/summary]))
 
-(s/def :google-json/event 
-  (s/or :date-time (s/keys :req-un [:google-json/end :google-json/start 
+(s/def :google-json/event
+  (s/or :date-time (s/keys :req-un [:google-json/end :google-json/start
                                     :google-json/summary])
         :full-day full-day-event))
 
@@ -135,15 +135,21 @@
   (s/assert ::events gcal-events)
   (throw (Exception. "TODO: THIS")))
 
+(defn- prepare-add-events [calendar-id auth services]
+  (s/assert string? calendar-id)
+  (s/assert ::oauth/token-result auth)
+  (let [date-range (services-range services)
+        existing-events (-> (gcal/events calendar-id date-range auth) :body :items gcal-event-index)]
+    (mapcat (partial service->gcal-events existing-events) services)))
+
 (defn- sync-calendars [{:keys [token-storage config-storage] :as ctx} services] 
   (s/assert (s/coll-of ::spec/service) services)
   (let [auth (storage/get-token token-storage)
-        calendar-id (:id (config/get-config config-storage :church-calendar-sync.app/current-calendar))
-        date-range (services-range services)
-        existing-events (-> (gcal/events calendar-id date-range auth) :body :items gcal-event-index)] 
+        calendar-id (:id (config/get-config config-storage :church-calendar-sync.app/current-calendar))] 
     (->> services
-         (mapcat (partial service->gcal-events existing-events))
-         (add-events calendar-id auth))))
+         (filter (comp service-lengths :service/type)) ;; todo
+         (prepare-add-events calendar-id auth)
+         #_(add-events calendar-id auth))))
 
 (defn run [ctx {:keys [params] :as req}]
   (s/assert ::spec/req-ctx ctx)

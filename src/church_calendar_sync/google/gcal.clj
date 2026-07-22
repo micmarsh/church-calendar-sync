@@ -51,9 +51,6 @@
                                             "timeMax" (local-dt->rfc3339 end-date)})))
       read-resp))
 
-(def primary-events (partial events "primary"))
-
-
 (comment
   (def date-range {:start-date (java.time.LocalDateTime/of 2026 6 1 0 0)
                    :end-date (java.time.LocalDateTime/of 2026 6 30  0 0)})
