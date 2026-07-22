@@ -5,8 +5,7 @@
    [church-calendar-sync.utils :refer [parse-json]]
    [clojure.spec.alpha :as s]
    [org.httpkit.client :as client]
-   [church-calendar-sync.google.oauth.storage :as storage]
-   [church-calendar-sync.config-storage :as config])
+   [church-calendar-sync.google.oauth.storage :as storage])
   (:import
    [java.time ZoneId]))
 

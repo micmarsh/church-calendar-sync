@@ -1,6 +1,6 @@
 (ns church-calendar-sync.spec
   (:require
-   [church-calendar-sync.config-storage :as config]
+   [church-calendar-sync.storage.config :as config]
    [church-calendar-sync.google.oauth :as oauth]
    [church-calendar-sync.google.oauth.storage :as storage]
    [clojure.spec.alpha :as s]))

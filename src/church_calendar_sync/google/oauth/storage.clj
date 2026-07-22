@@ -12,7 +12,6 @@
   (s/assert ::oauth/expiring-token-result token)
   (-put this token))
 
-;; todo test google api with expired tokens, make sure it actually matters!
 (defn get-token [this]
   (->>
    (when-let [token (-get this)]

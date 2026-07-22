@@ -1,9 +1,8 @@
 (ns church-calendar-sync.core
   (:require
    [church-calendar-sync.app :as app]
-   [church-calendar-sync.config-storage :refer [ConfigStorage]]
    [church-calendar-sync.google.oauth :as oauth]
-   [church-calendar-sync.google.oauth.storage :as storage]
+   [church-calendar-sync.storage.impls :as storage]
    [church-calendar-sync.spec :as spec]
    [church-calendar-sync.utils :refer [cond=]]
    [clojure.java.browse :as browse]
@@ -28,16 +27,6 @@
 
 (def oauth-creds (delay (oauth/web-credentials "credentials.json")))
 
-;; todo real storage lol
-(defonce storage-atom (atom nil))
-(extend-type clojure.lang.Atom
-  storage/TokenStorage 
-  (-get [a] (:token-storage (deref a)))
-  (-put [a item] (swap! a assoc :token-storage item))
-  ConfigStorage
-  (get-config [a k] (get-in @a [:config k]))
-  (put-config! [a k v] (swap! a assoc-in [:config k] v)))
-
 (defn- -base-app-handler
   [ctx]
   (s/assert ::spec/req-ctx ctx)
@@ -56,7 +45,7 @@
              (response/not-found "Not found")))))
 
 (defn ->app [creds]
-  (let [ctx (assoc creds :token-storage storage-atom :config-storage storage-atom)] 
+  (let [ctx (assoc creds :token-storage @storage/storage-file :config-storage @storage/storage-file)] 
     (-> (-base-app-handler ctx) wrap-params wrap-multipart-params)))
 
 ;; to be able to shut down in repl testing

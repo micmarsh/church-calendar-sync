@@ -1,4 +1,4 @@
-(ns church-calendar-sync.config-storage)
+(ns church-calendar-sync.storage.config)
 
 (defprotocol ConfigStorage 
   (get-config [this key'])

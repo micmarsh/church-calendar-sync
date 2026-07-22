@@ -1,13 +1,12 @@
 (ns church-calendar-sync.app.processing-upload 
   (:require
-    [church-calendar-sync.config-storage :as config]
     [church-calendar-sync.google.gcal :as gcal]
     [church-calendar-sync.google.oauth :as oauth]
     [church-calendar-sync.google.oauth.storage :as storage]
-    [church-calendar-sync.import :refer [ods-sheet->services]]
-    [church-calendar-sync.import :as import]
+    [church-calendar-sync.import :refer [ods-sheet->services service-type-map]]
     [church-calendar-sync.import.jopendocument :refer [sheet-from-file]]
     [church-calendar-sync.spec :as spec]
+    [church-calendar-sync.storage.config :as config]
     [church-calendar-sync.utils :refer [sort-by-date]]
     [clojure.spec.alpha :as s]
     [clojure.string :as str]) 
@@ -71,7 +70,7 @@
   (group-by (comp #(.toLocalDate %) #(java.time.ZonedDateTime/parse %) :date-time :start) events))
 
 (def service-type->name 
-  (into {} (map (fn [[k v]] [v k]) import/service-type-map)))
+  (into {} (map (fn [[k v]] [v k]) service-type-map)))
 
 (defn- overlapping-words [str1 str2]
   (some (into #{} (map str/lower-case) (str/split str1 #" ")) 

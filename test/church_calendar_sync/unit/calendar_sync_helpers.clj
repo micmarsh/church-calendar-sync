@@ -70,7 +70,9 @@
 
 (comment
   ( = (java.time.LocalDateTime/of 2014 7 6 10 0)
-   (.toLocalDateTime
-    (church-calendar-sync.app.processing-upload/->date-time "2014-07-06T10:00:00-04:00")))
-  
+    (.toLocalDateTime
+     (church-calendar-sync.app.processing-upload/->date-time "2014-07-06T10:00:00-04:00")))
+  (clojure.edn/read-string "{:foo :bar}")
+  (str {:foo "bar"})
+  (spit  (str (System/getProperty "user.home") "/.config/calendar_sync.edn") (str {:foo "bar"}))
   )
