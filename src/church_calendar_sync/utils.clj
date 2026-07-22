@@ -35,6 +35,7 @@
   (sort-by (comp millis date-key) coll))
 
 (defn parse-json [string] (json/read-str string :key-fn csk/->kebab-case-keyword))
+(defn serialize-json [clj] (json/write-str clj :key-fn csk/->camelCaseString))
 (def parse-edn (partial edn/read-string {:readers read-write/tags} ))
 
 (defn- equals-cond-clauses [value forms]

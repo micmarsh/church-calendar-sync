@@ -2,7 +2,7 @@
   (:require
    [church-calendar-sync.google.oauth :as oauth]
    [church-calendar-sync.spec :as spec]
-   [church-calendar-sync.utils :refer [parse-json]]
+   [church-calendar-sync.utils :refer [parse-json serialize-json]]
    [clojure.spec.alpha :as s]
    [org.httpkit.client :as client])
   (:import
@@ -69,7 +69,7 @@
                                       java.time.format.TextStyle/SHORT
                                       java.util.Locale/US)]
       (#{"ET" "EST" "EDT"} short-name))
-    (catch Exception e false)))
+    (catch Exception e)))
 
 (s/def :google-json/time-zone eastern?)
 (s/def :google-json/zoned-date-time (s/keys :req-un [:google-json/date-time :google-json/time-zone]))
@@ -96,15 +96,15 @@
 (defn insert-event [calendar-id token event]
   (-> base-api
       (str "calendars/" (client/url-encode calendar-id) "/events")
-      (client/post (-> (json token) (assoc :form-params event)))))
+      (client/post (-> (json token) (assoc :body (serialize-json event))))))
 
 (defn insert-events
   [calendar-id token events]
   (s/assert ::oauth/req-auth-parts token)
   (s/assert ::events events)
-  (clojure.pprint/pprint calendar-id)
-  (clojure.pprint/pprint token)
-  (clojure.pprint/pprint events)
+  ;; (clojure.pprint/pprint calendar-id)
+  ;; (clojure.pprint/pprint token)
+  ;; (clojure.pprint/pprint events)
   (->> events
        (mapv (partial insert-event calendar-id token))
        (map (comp :body read-resp))))

@@ -45,8 +45,6 @@
   (some (into #{} (map str/lower-case) (str/split str1 #" ")) 
         (map str/lower-case (str/split str2 #" "))))
 
-(overlapping-words "Sunday Divine Liturgy ~ Воскресная Божественная Литургия" "Sunday ?? After Pentecost")
-
 (defn desc-matches? [gcal-json service]
   (s/assert ::gcal/event gcal-json)
   (s/assert ::spec/service service)
@@ -103,14 +101,20 @@
                       ;; TAKE 5 is for testing purposes
                       (take 5 gcal-events)))
 
+(defn keep-for-deduplication? 
+  "Checks if time zone is eastern, or doesn't specify tz at all"
+  [{:keys [start end] :as event}]
+  (s/assert ::gcal/event event)
+  (and (or (some-> start :time-zone gcal/eastern?) (:date start))
+       (or (some-> end :time-zone gcal/eastern?) (:date end))))
+
 (defn- prepare-add-events [calendar auth services]
   ;(s/assert string? calendar) todo real spec?
   (s/assert ::oauth/token-result auth)
   (let [date-range (services-range services)
         existing-events (->> (gcal/get-events (:id calendar) date-range auth)
                              :body :items
-                             ;; these aren't relevant for filtering anyway
-                             (filter (comp gcal/eastern? :time-zone))
+                             (filter keep-for-deduplication?)
                              gcal-event-index)
         tz (java.time.ZoneId/of (:time-zone calendar))]
     (mapcat (partial service->gcal-events tz existing-events) services)))
@@ -120,7 +124,7 @@
   (let [auth (storage/get-token token-storage)
         calendar (config/get-config config-storage :church-calendar-sync.app/current-calendar)] 
     (->> services
-         (filter (comp service-lengths :service/type)) ;; todo
+         (filter (comp service-lengths :service/type)) ;; todo some other way of handling/reporting on unknown services
          (prepare-add-events calendar auth)
          (add-events calendar auth))))
 
