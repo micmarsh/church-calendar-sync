@@ -78,8 +78,9 @@
 (s/def :google-json/start :google-json/zoned-date-time)
 (s/def :google-json/end :google-json/zoned-date-time)
 
-(s/def :google-json-full-day/start ->date)
-(s/def :google-json-full-day/end ->date)
+(s/def :google-json-full-day/date ->date)
+(s/def :google-json-full-day/start (s/keys :req-un [:google-json-full-day/date]))
+(s/def :google-json-full-day/end (s/keys :req-un [:google-json-full-day/date]))
 
 (def full-day-event
   (s/keys :req-un [:google-json-full-day/start :google-json-full-day/end
