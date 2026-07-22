@@ -107,7 +107,7 @@
   ;(s/assert string? calendar) todo real spec?
   (s/assert ::oauth/token-result auth)
   (let [date-range (services-range services)
-        existing-events (->> (gcal/events (:id calendar) date-range auth)
+        existing-events (->> (gcal/get-events (:id calendar) date-range auth)
                              :body :items
                              ;; these aren't relevant for filtering anyway
                              (filter (comp gcal/eastern? :time-zone))

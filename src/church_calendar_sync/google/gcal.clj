@@ -31,13 +31,13 @@
 
 (def ^:private read-resp (comp #(update % :body parse-json) deref))
 
-(defn calendars [token]
+(defn get-calendars [token]
   (s/assert ::oauth/req-auth-parts token)
   (-> (str base-api "users/me/calendarList")
       (client/get (json token))
       read-resp))
 
-(defn events
+(defn get-events
   [calendar-id
    {:keys [start-date end-date] :as params}
    token]
@@ -93,12 +93,62 @@
 
 (s/def ::events (s/coll-of ::event))
 
+(defn insert-event [calendar-id token event]
+  (-> base-api
+      (str "calendars/" (client/url-encode calendar-id) "/events")
+      (client/post (-> (json token) (assoc :form-params event)))))
+
 (defn insert-events
   [calendar-id token events]
   (s/assert ::oauth/req-auth-parts token)
   (s/assert ::events events)
-  (let [url (str base-api "calendars/" (client/url-encode calendar-id) "/events")]
-    (->> events
-         (mapv #(client/post url (-> (json token) (assoc :form-params %))))
-         (map (comp :body read-resp)))))
+  (clojure.pprint/pprint calendar-id)
+  (clojure.pprint/pprint token)
+  (clojure.pprint/pprint events)
+  (->> events
+       (mapv (partial insert-event calendar-id token))
+       (map (comp :body read-resp))))
+
+(comment
+  (def calendar-id "78c12c8508d6ebb0b919960e6300c1898c1c8f7594d160d47836bf03854db066@group.calendar.google.com")
+
+  (def token {:access-token
+              "ya29.a0ARGnu0Y0CgqReb11bM4whWUUDMjLD0cVaXjzmpxQv3TJcNjnk0mxZV4C65lTGzqQ6Io2UC61tauGADwxj6sRGVHAAF3fHBm4MmyjBPPuho1R43i1EL5ZQwxLqRIDBzl5YiOh7Y1i1vOrh1OHu9vyqvZVvYrvt-BxM6gp_NUjX_25e3s9Y_-oxoVzA8rJLxLkehClf6A_3TPVIDW1iYoG6pdEpunZ-Zxky7s7KiRUhF1ldWdSVgunQFz7UxpVtfErM64fNAyK89vEuJW7GRZolefL24X3aCgYKAScSARESFQHGX2MiNXC2RFoDVj69EiK51qsVgA0291",
+              :expires-in 3599,
+              :scope "https://www.googleapis.com/auth/calendar",
+              :token-type "Bearer",
+              :expires #time/date-time "2026-07-22T13:53:09.750924919"})
+
+  (def inputs '({:start
+                 {:date-time "2026-06-01T08:00:00-04:00",
+                  :time-zone "America/New_York"},
+                 :end
+                 {:date-time "2026-06-01T10:00:00-04:00",
+                  :time-zone "America/New_York"},
+                 :summary "Div. Liturgy"}
+                {:start {:date "2026-06-01"},
+                 :end {:date "2026-06-01"},
+                 :summary "Holy Spirit Day"}
+                {:start
+                 {:date-time "2026-06-02T18:00:00-04:00",
+                  :time-zone "America/New_York"},
+                 :end
+                 {:date-time "2026-06-02T20:00:00-04:00",
+                  :time-zone "America/New_York"},
+                 :summary "Evening Services"}
+                {:start
+                 {:date-time "2026-06-03T09:00:00-04:00",
+                  :time-zone "America/New_York"},
+                 :end
+                 {:date-time "2026-06-03T11:00:00-04:00",
+                  :time-zone "America/New_York"},
+                 :summary "Div. Liturgy"}
+                {:start {:date "2026-06-03"},
+                 :end {:date "2026-06-03"},
+                 :summary "Sts. Constantine and Helen"}))
+
+  (insert-event calendar-id token (first inputs))
+@*1
+
+  )
 

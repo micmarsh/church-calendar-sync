@@ -61,7 +61,7 @@
   (if-let [token-result (storage/get-token token-storage)]
     ;;todo something on 400 or 500? May want functions to throw and a unified middlware for all error types?
     ;;also there's generally a ton going on in this function in general 
-    (let [calendars (->> (gcal/calendars token-result) :body :items (filter (comp #{"owner"} :access-role)))]
+    (let [calendars (->> (gcal/get-calendars token-result) :body :items (filter (comp #{"owner"} :access-role)))]
       [:body
        [:h2 "Select a Calendar to Sync to"]
        [:form {:action select-calendar-path :method "post"}
