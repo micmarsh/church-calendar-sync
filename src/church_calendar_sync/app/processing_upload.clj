@@ -178,7 +178,7 @@
 (defonce events-to-add-cache (atom nil))
 
 (defn run-initial [ctx {:keys [params] :as req}]
-  (s/assert ::spec/req-ctx ctx)
+  (s/assert ::spec/base-req-ctx ctx)
   (->> (get params uploaded-file-name)
        (:tempfile)
        (sheet-from-file)
@@ -190,7 +190,7 @@
        (add-events-hiccup)))
 
 (defn sync-to-calendar [{:keys [token-storage config-storage] :as ctx} req]
-  (s/assert ::spec/req-ctx ctx)
+  (s/assert ::spec/base-req-ctx ctx)
   (if-let [events-to-add @events-to-add-cache]
     nil
     (response/redirect "/main"))) ;; todo: move these to another ns?

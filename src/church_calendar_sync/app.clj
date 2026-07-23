@@ -39,7 +39,7 @@
                (or (nil? calendar) (nil? auth)) (assoc :disabled true))]]))
 
 (defn- google-login [ctx]
-  (s/assert ::spec/req-ctx ctx)
+  (s/assert ::spec/base-req-ctx ctx)
   (if-let [auth (storage/get-token (:token-storage ctx))]
     [:div "Logged into google successfully"]
     [:div [:a {:href (oauth/get-raw-oath-url ctx)} "Log in to Google"]]))
@@ -58,7 +58,7 @@
 (def ^:const select-calendar-param "calendar-selection")
 
 (defn calendar-list [{:keys [token-storage] :as ctx}]
-  (s/assert ::spec/req-ctx ctx)
+  (s/assert ::spec/base-req-ctx ctx)
   (if-let [token-result (storage/get-token token-storage)]
     ;;todo something on 400 or 500? May want functions to throw and a unified middlware for all error types?
     ;;also there's generally a ton going on in this function in general 
@@ -84,12 +84,12 @@
 #_(swap! church-calendar-sync.core/storage-atom assoc :config nil)
 
 (defn select-calendar [{:keys [config-storage] :as ctx} {:keys [params] :as req}]
-  (s/assert ::spec/req-ctx ctx) 
+  (s/assert ::spec/base-req-ctx ctx) 
   (config/put-config! config-storage ::current-calendar (-> params (get select-calendar-param) (edn/read-string)))
   (response/redirect main-view-path))
 
 (defn main [context]
-  (s/assert ::spec/req-ctx context)
+  (s/assert ::spec/base-req-ctx context)
   [:body
    [:h1 "Calendar Sync"]
    (ods-upload context)
@@ -109,7 +109,7 @@
   (assoc token-result :expires (.plusSeconds (java.time.LocalDateTime/now) expires-in)))
 
 (defn oauth-get-token [{:keys [token-storage] :as context} req]
-  (s/assert ::spec/req-ctx context)
+  (s/assert ::spec/base-req-ctx context)
   (let [code (oauth/ring-req->oauth-code req)
         token-result (oauth/oauth-token code context)]
     (storage/put-token! token-storage (assoc-expires-time token-result)))

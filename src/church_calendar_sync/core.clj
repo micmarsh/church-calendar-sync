@@ -29,7 +29,7 @@
 
 (defn- -base-app-handler
   [ctx]
-  (s/assert ::spec/req-ctx ctx)
+  (s/assert ::spec/base-req-ctx ctx)
   (let [oauth-redirect-path (oauth/local-redirect-path ctx)]
     (fn [{:keys [request-method uri] :as req}]
       (cond= [request-method uri]
