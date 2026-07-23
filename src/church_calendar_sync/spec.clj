@@ -1,6 +1,5 @@
 (ns church-calendar-sync.spec
   (:require
-   [church-calendar-sync.google.gcal :as gcal]
    [church-calendar-sync.google.oauth :as oauth]
    [clojure.spec.alpha :as s]))
 
@@ -89,5 +88,19 @@
 (s/def ::service 
   (s/multi-spec event-spec :event/type))
 
+(defn eastern? [tz-str]
+  (try
+    (let [short-name (.getDisplayName (java.time.ZoneId/of tz-str)
+                                      java.time.format.TextStyle/SHORT
+                                      java.util.Locale/US)]
+      (#{"ET" "EST" "EDT"} short-name))
+    (catch Exception e)))
+
+(s/def :google-json/time-zone eastern?)
+(s/def :google-cal-json/id string?)
+(s/def :google-cal-json/summary string?)
+
+(s/def ::calendar (s/keys :req-un [:google-cal-json/id :google-cal-json/summary :google-json/time-zone]))
+
 ;; this reveals some nasty circular refs,
-(s/def ::req-ctx (s/merge (s/keys :req-un [::gcal/calendar ::oauth/expiring-token-result]) ::oauth/creds))
+(s/def ::req-ctx (s/merge ::calendar ::oauth/expiring-token-result ::oauth/creds))

@@ -56,19 +56,7 @@
 ;;todo move these..., to gcal?
 (s/def :google-json/date-time ->date-time)
 
-(defn eastern? [tz-str]
-  (try
-    (let [short-name (.getDisplayName (java.time.ZoneId/of tz-str)
-                                      java.time.format.TextStyle/SHORT
-                                      java.util.Locale/US)]
-      (#{"ET" "EST" "EDT"} short-name))
-    (catch Exception e)))
-
-(s/def :google-json/time-zone eastern?)
-(s/def :google-cal-json/id string?)
-(s/def :google-cal-json/summary string?)
-
-(s/def ::calendar (s/keys :req-un [:google-cal-json/id :google-cal-json/summary :google-json/time-zone]))
+(def eastern? spec/eastern?)
 
 (def ^:private read-resp (comp #(update % :body parse-json) deref))
 
