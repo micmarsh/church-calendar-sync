@@ -98,7 +98,7 @@
    (google-login context)
    #_htmx-load])
 
-(def processing-upload processing-upload/run)
+(def processing-upload processing-upload/run-initial)
 
 (defn- assoc-expires-time [{:keys [expires-in] :as token-result}]
   (assoc token-result :expires (.plusSeconds (java.time.LocalDateTime/now) expires-in)))

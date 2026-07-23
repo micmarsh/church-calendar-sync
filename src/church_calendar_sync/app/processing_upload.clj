@@ -1,17 +1,17 @@
-(ns church-calendar-sync.app.processing-upload 
+(ns church-calendar-sync.app.processing-upload
   (:require
-    [church-calendar-sync.google.gcal :as gcal]
-    [church-calendar-sync.google.oauth :as oauth]
-    [church-calendar-sync.google.oauth.storage :as storage]
-    [church-calendar-sync.import :refer [ods-sheet->services service-type-map]]
-    [church-calendar-sync.import.jopendocument :refer [sheet-from-file]]
-    [church-calendar-sync.spec :as spec]
-    [church-calendar-sync.storage.config :as config]
-    [church-calendar-sync.utils :refer [sort-by-date]]
-    [clojure.spec.alpha :as s]
-    [clojure.string :as str]) 
+   [church-calendar-sync.google.gcal :as gcal]
+   [church-calendar-sync.google.oauth :as oauth]
+   [church-calendar-sync.google.oauth.storage :as storage]
+   [church-calendar-sync.import :refer [ods-sheet->services service-type-map]]
+   [church-calendar-sync.import.jopendocument :refer [sheet-from-file]]
+   [church-calendar-sync.spec :as spec]
+   [church-calendar-sync.storage.config :as config]
+   [church-calendar-sync.utils :refer [sort-by-date]]
+   [clojure.spec.alpha :as s]
+   [clojure.string :as str])
   (:import
-    [java.time Duration]))
+   [java.time Duration]))
 
 ;; this is copy-paste of `test-config`:
 ;; probably want to do some DI and sharing of some kind of file eventually?
@@ -33,16 +33,21 @@
        ((juxt (comp :event/date-time first) (comp :event/date-time last)))
        ((fn [[start end]] {:start-date start :end-date end}))))
 
+(defn- event-day [{:keys [start]}]
+  (let [{:keys [date-time date]} start]
+    (cond
+      date-time (-> date-time (java.time.ZonedDateTime/parse) (.toLocalDate))
+      date (java.time.LocalDate/parse date))))
 
 (defn gcal-event-index [events]
   (s/assert ::gcal/events events)
-  (group-by (comp #(.toLocalDate %) #(java.time.ZonedDateTime/parse %) :date-time :start) events))
+  (group-by event-day events))
 
-(def service-type->name 
+(def service-type->name
   (into {} (map (fn [[k v]] [v k]) service-type-map)))
 
 (defn- overlapping-words [str1 str2]
-  (some (into #{} (map str/lower-case) (str/split str1 #" ")) 
+  (some (into #{} (map str/lower-case) (str/split str1 #" "))
         (map str/lower-case (str/split str2 #" "))))
 
 (defn desc-matches? [gcal-json service]
@@ -72,7 +77,7 @@
         type (:service/type service)]
     {:start {:date-time (gcal/local-dt->rfc3339 start-time)
              :time-zone (.getId tz)} ;; what to do about this? config DI? constant somewhere?
-     :end {:date-time (gcal/local-dt->rfc3339 (.plus start-time (service-lengths type))) 
+     :end {:date-time (gcal/local-dt->rfc3339 (.plus start-time (service-lengths type)))
            :time-zone (.getId tz)}
      :summary (service-type->name type)}))
 
@@ -81,12 +86,12 @@
        (empty? (filter #(and (s/valid? gcal/full-day-event %) (desc-matches? % service)) day-bucket))))
 
 (defn service->gcal-events [tz existing-events service]
-  (s/assert (s/map-of #(instance? java.time.LocalDate %) ::gcal/events) existing-events) 
+  (s/assert (s/map-of #(instance? java.time.LocalDate %) ::gcal/events) existing-events)
   (s/assert ::spec/service service)
   (let [day (.toLocalDate (:event/date-time service))
         day-bucket (get existing-events day)
         exists? (some (partial matches? service) day-bucket)]
-    (filter identity 
+    (filter identity
             [(when-not exists? (->gcal-json-event tz service))
              (when (needs-feast? service day-bucket) ;; check if service is liturgy and there's no all-day feast event yet
                {:start {:date (.format day java.time.format.DateTimeFormatter/ISO_DATE)}
@@ -97,43 +102,84 @@
   ;(s/assert map? calendar) todo real spec?
   (s/assert ::oauth/token-result auth)
   (s/assert ::gcal/events gcal-events)
-  (gcal/insert-events (:id calendar) auth 
+  (gcal/insert-events (:id calendar) auth
                       ;; TAKE 5 is for testing purposes
                       (take 5 gcal-events)))
 
-(defn keep-for-deduplication? 
-  "Checks if time zone is eastern, or doesn't specify tz at all"
+(defn keep-for-deduplication?
+  "Checks if time zone is either eastern or doesn't specify tz at all"
   [{:keys [start end] :as event}]
   (s/assert ::gcal/event event)
   (and (or (some-> start :time-zone gcal/eastern?) (:date start))
        (or (some-> end :time-zone gcal/eastern?) (:date end))))
 
-(defn- prepare-add-events [calendar auth services]
-  ;(s/assert string? calendar) todo real spec?
-  (s/assert ::oauth/token-result auth)
-  (let [date-range (services-range services)
-        existing-events (->> (gcal/get-events (:id calendar) date-range auth)
-                             :body :items
-                             (filter keep-for-deduplication?)
-                             gcal-event-index)
-        tz (java.time.ZoneId/of (:time-zone calendar))]
-    (mapcat (partial service->gcal-events tz existing-events) services)))
-
-(defn- sync-calendars [{:keys [token-storage config-storage] :as ctx} services] 
-  (s/assert (s/coll-of ::spec/service) services)
+(defn- prepare-add-events [{:keys [token-storage config-storage] :as ctx} services]
   (let [auth (storage/get-token token-storage)
-        calendar (config/get-config config-storage :church-calendar-sync.app/current-calendar)] 
-    (->> services
-         (filter (comp service-lengths :service/type)) ;; todo some other way of handling/reporting on unknown services
-         (prepare-add-events calendar auth)
-         (add-events calendar auth))))
+        calendar (config/get-config config-storage :church-calendar-sync.app/current-calendar)
 
-(defn run [ctx {:keys [params] :as req}]
+        date-range (services-range services)
+        existing-events (-> (gcal/get-events (:id calendar) date-range auth) :body :items)
+        existing-events-by-day (->> existing-events
+                                    (filter keep-for-deduplication?)
+                                    gcal-event-index)
+        tz (java.time.ZoneId/of (:time-zone calendar))]
+    {::services-from-file services
+     ::events-from-calendar existing-events
+     ::events-to-add (mapcat (partial service->gcal-events tz existing-events-by-day) services)}))
+
+(s/def ::services-from-file (s/+ ::spec/service))
+(s/def ::events-from-calendar ::gcal/events)
+(s/def ::events-to-add ::gcal/events)
+(s/def ::initial-ui-input (s/keys :req [::services-from-file ::events-from-calendar ::events-to-add]))
+
+
+(s/def ::displayable (s/or ::service ::spec/service
+                           ::gcal-event ::gcal/event))
+
+(defmulti display #(let [result (s/conform ::displayable %)]
+                     (if (= ::s/invalid result) result
+                         (key result))))
+(defmethod display ::service
+  [s]
+  (str (:event/date-time s) " " (:service/feast s (:event/description s)) " "  (name (:service/type s ""))))
+
+(defn- event-time [{:keys [start]}]
+  (let [{:keys [date-time date]} start]
+    (cond
+      date-time (-> date-time (str/split #"T") (last))
+      date "00:00")))
+
+(defmethod display ::gcal-event
+  [event]
+  (str (event-day event) "T" (event-time event) " " (:summary event)))
+
+(defn display-all [items]
+  (->> items
+       (map display) 
+       (sort)
+       (map (partial vector :li))
+       (vector :ul)))
+
+(defn- add-events-hiccup
+  [{::keys [services-from-file
+            events-from-calendar
+            events-to-add] :as input}]
+  (s/assert ::initial-ui-input input)
+  [:body
+   [:div {:style {:display "flex" :justify-content "space-around"}}
+    [:div [:h3 "Services from File"] (display-all services-from-file)]
+    [:div [:h3 "Events from Calendar"] (display-all events-from-calendar)]
+    [:div [:h3 "Events to Add"] (display-all events-to-add)]]
+   ;; todo button to submit!
+   ])
+
+(defn run-initial [ctx {:keys [params] :as req}]
   (s/assert ::spec/req-ctx ctx)
   (->> (get params uploaded-file-name)
        (:tempfile)
        (sheet-from-file)
        (ods-sheet->services import-sheet-config)
-       (sync-calendars ctx)
-       (pstr)
-       (vector :body)))
+       (filter (comp service-lengths :service/type)) ;; todo some other way of handling/reporting on unknown services 
+       (take 10)
+       (prepare-add-events ctx)
+       (add-events-hiccup)))
