@@ -8,10 +8,6 @@
   (:import
    [java.time ZoneId]))
 
-(s/def ::start-date ::spec/date-time)
-(s/def ::end-date ::spec/date-time)
-(s/def ::date-range (s/keys :req-un [::start-date ::end-date]))
-
 (def ^:private timezone
   (ZoneId/of "America/Detroit"))
 
@@ -47,27 +43,6 @@
    :content-type :json
    :accept :json})
 
-(def ^:private read-resp (comp #(update % :body parse-json) deref))
-
-(defn get-calendars [token]
-  (s/assert ::oauth/req-auth-parts token)
-  (-> (str base-api "users/me/calendarList")
-      (client/get (json token))
-      read-resp))
-
-(defn get-events
-  [calendar-id
-   {:keys [start-date end-date] :as params}
-   token]
-  (s/assert ::date-range params)
-  (s/assert ::oauth/req-auth-parts token)
-  (-> (str base-api "calendars/" (client/url-encode calendar-id) "/events")
-      (client/get (-> (json token)
-                      (assoc :query-params {"timeMin" (->rfc3339 (.toLocalDate start-date))
-                                            "timeMax" (->rfc3339 end-date)})))
-      read-resp))
-
-
 (defn ->date-time [input]
   (try
     (java.time.ZonedDateTime/parse input)
@@ -90,6 +65,35 @@
     (catch Exception e)))
 
 (s/def :google-json/time-zone eastern?)
+(s/def :google-cal-json/id string?)
+(s/def :google-cal-json/summary string?)
+
+(s/def ::calendar (s/keys :req-un [:google-cal-json/id :google-cal-json/summary :google-json/time-zone]))
+
+(def ^:private read-resp (comp #(update % :body parse-json) deref))
+
+(defn get-calendars [token]
+  (s/assert ::oauth/req-auth-parts token)
+  (-> (str base-api "users/me/calendarList")
+      (client/get (json token))
+      read-resp))
+
+(s/def ::start-date ::spec/date-time)
+(s/def ::end-date ::spec/date-time)
+(s/def ::date-range (s/keys :req-un [::start-date ::end-date]))
+
+(defn get-events
+  [calendar-id
+   {:keys [start-date end-date] :as params}
+   token]
+  (s/assert ::date-range params)
+  (s/assert ::oauth/req-auth-parts token)
+  (-> (str base-api "calendars/" (client/url-encode calendar-id) "/events")
+      (client/get (-> (json token)
+                      (assoc :query-params {"timeMin" (->rfc3339 (.toLocalDate start-date))
+                                            "timeMax" (->rfc3339 end-date)})))
+      read-resp))
+
 (s/def :google-json/zoned-date-time (s/keys :req-un [:google-json/date-time :google-json/time-zone]))
 
 (s/def :google-json/summary string?)

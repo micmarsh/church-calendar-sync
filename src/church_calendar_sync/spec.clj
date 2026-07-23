@@ -1,8 +1,7 @@
 (ns church-calendar-sync.spec
   (:require
-   [church-calendar-sync.storage.config :as config]
+   [church-calendar-sync.google.gcal :as gcal]
    [church-calendar-sync.google.oauth :as oauth]
-   [church-calendar-sync.google.oauth.storage :as storage]
    [clojure.spec.alpha :as s]))
 
 (defn gte-int? [min] (s/and int? (fn [num] (>= num min))))
@@ -90,6 +89,5 @@
 (s/def ::service 
   (s/multi-spec event-spec :event/type))
 
-(s/def ::token-storage #(satisfies? storage/TokenStorage %))
-(s/def ::config-storage #(satisfies? config/ConfigStorage %))
-(s/def ::req-ctx (s/merge (s/keys :req-un [::token-storage ::config-storage]) ::oauth/creds))
+;; this reveals some nasty circular refs,
+(s/def ::req-ctx (s/merge (s/keys :req-un [::gcal/calendar ::oauth/expiring-token-result]) ::oauth/creds))
