@@ -28,14 +28,15 @@
 
 (def ^:const upload-view-path "/ods-upload")
 
-(defn ods-upload [{:keys [token-storage]}]
-  (let [auth (storage/get-token token-storage)]
+(defn ods-upload [{:keys [token-storage config-storage]}]
+  (let [auth (storage/get-token token-storage)
+        calendar (config/get-config config-storage ::current-calendar)]
     [:form {:action upload-view-path :method "post" :enctype "multipart/form-data"}
      "Select file to upload: "
      [:input {:type "file" :name uploaded-file-name}]
      [:p]
      [:input (cond-> {:type "submit" :value "Upload"}
-               (nil? auth) (assoc :disabled true))]]))
+               (or (nil? calendar) (nil? auth)) (assoc :disabled true))]]))
 
 (defn- google-login [ctx]
   (s/assert ::spec/req-ctx ctx)
@@ -99,6 +100,10 @@
    #_htmx-load])
 
 (def processing-upload processing-upload/run-initial)
+
+(def ^:const sync-to-calendar-path processing-upload/sync-to-calendar-path)
+
+(def sync-to-calendar processing-upload/sync-to-calendar)
 
 (defn- assoc-expires-time [{:keys [expires-in] :as token-result}]
   (assoc token-result :expires (.plusSeconds (java.time.LocalDateTime/now) expires-in)))

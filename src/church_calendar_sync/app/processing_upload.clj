@@ -9,7 +9,8 @@
    [church-calendar-sync.storage.config :as config]
    [church-calendar-sync.utils :refer [sort-by-date]]
    [clojure.spec.alpha :as s]
-   [clojure.string :as str])
+   [clojure.string :as str]
+   [ring.util.response :as response])
   (:import
    [java.time Duration]))
 
@@ -75,9 +76,9 @@
 (defn- ->gcal-json-event [^java.time.ZoneId tz service]
   (let [start-time (:event/date-time service)
         type (:service/type service)]
-    {:start {:date-time (gcal/local-dt->rfc3339 start-time)
+    {:start {:date-time (gcal/->rfc3339 start-time)
              :time-zone (.getId tz)} ;; what to do about this? config DI? constant somewhere?
-     :end {:date-time (gcal/local-dt->rfc3339 (.plus start-time (service-lengths type)))
+     :end {:date-time (gcal/->rfc3339 (.plus start-time (service-lengths type)))
            :time-zone (.getId tz)}
      :summary (service-type->name type)}))
 
@@ -98,13 +99,12 @@
                 :end {:date (.format day java.time.format.DateTimeFormatter/ISO_DATE)}
                 :summary (:service/feast service)})])))
 
+;; todo just inline this once it's ready?
 (defn- add-events [calendar auth gcal-events]
   ;(s/assert map? calendar) todo real spec?
   (s/assert ::oauth/token-result auth)
   (s/assert ::gcal/events gcal-events)
-  (gcal/insert-events (:id calendar) auth
-                      ;; TAKE 5 is for testing purposes
-                      (take 5 gcal-events)))
+  (gcal/insert-events (:id calendar) auth gcal-events))
 
 (defn keep-for-deduplication?
   "Checks if time zone is either eastern or doesn't specify tz at all"
@@ -160,18 +160,22 @@
        (map (partial vector :li))
        (vector :ul)))
 
+(def ^:const sync-to-calendar-path "/sync-to-calendar")
+
 (defn- add-events-hiccup
   [{::keys [services-from-file
             events-from-calendar
             events-to-add] :as input}]
   (s/assert ::initial-ui-input input)
   [:body
-   [:div {:style {:display "flex" :justify-content "space-around"}}
-    [:div [:h3 "Services from File"] (display-all services-from-file)]
-    [:div [:h3 "Events from Calendar"] (display-all events-from-calendar)]
-    [:div [:h3 "Events to Add"] (display-all events-to-add)]]
-   ;; todo button to submit!
-   ])
+   [:form {:action sync-to-calendar-path :method "post"}
+    [:div{ :style {:display "flex" :justify-content "space-around"}}
+     [:div [:h3 "Services from File"] (display-all services-from-file)]
+     [:div [:h3 "Events from Calendar"] (display-all events-from-calendar)]
+     [:div [:h3 "Events to Add"] (display-all events-to-add)]] 
+    [:input {:type "submit" :value "Sync"}]]])
+
+(defonce events-to-add-cache (atom nil))
 
 (defn run-initial [ctx {:keys [params] :as req}]
   (s/assert ::spec/req-ctx ctx)
@@ -182,4 +186,11 @@
        (filter (comp service-lengths :service/type)) ;; todo some other way of handling/reporting on unknown services 
        (take 10)
        (prepare-add-events ctx)
+       (reset! events-to-add-cache)
        (add-events-hiccup)))
+
+(defn sync-to-calendar [{:keys [token-storage config-storage] :as ctx} req]
+  (s/assert ::spec/req-ctx ctx)
+  (if-let [events-to-add @events-to-add-cache]
+    nil
+    (response/redirect "/main"))) ;; todo: move these to another ns?

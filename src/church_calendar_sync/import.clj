@@ -5,9 +5,9 @@
    [church-calendar-sync.spec :as spec]
    [church-calendar-sync.utils :refer [remove-vals take-until]]
    [clojure.spec.alpha :as s]
-   [clojure.string :as str]) 
+   [clojure.string :as str])
   (:import
-    [java.time LocalDateTime]))
+   [java.time LocalDateTime]))
 
 (s/def ::services (s/coll-of ::spec/service))
 
@@ -73,7 +73,7 @@
         (service? day) (assoc :service/type type)
         (and (service? day) (not (moleben? day)) (not (nil? feast))) (assoc :service/feast feast)
         ;; todo should go back and add description to non-moleben feasts?
-        (and (service? day) (not (moleben? day))) (dissoc :event/description) 
+        (and (service? day) (not (moleben? day))) (dissoc :event/description)
         (not (nil? all-english?)) (assoc :service/all-english? all-english?)))))
 
 (defn- start-group? [day]
@@ -114,12 +114,15 @@
        (mapcat process-cycle-group)
        (s/assert ::services)))
 
+(def ^:const moleben-text
+  "Moleben & Akathist")
+
 ;; todo move this?
 (def ^:const service-type-map
   {"Div. Liturgy" :service-type/liturgy
    "Evening Services" :service-type/weekday-evening
    "Vigil" :service-type/vigil
-   "Moleben" :service-type/moleben
+   moleben-text :service-type/moleben
    "Hours" :service-type/hours
    "Confession" :event-type/confession
    "" :service-type/unknown})
@@ -156,7 +159,7 @@
 (def ^:const all-english "All-English Cycle")
 
 (def non-feast-texts
-  (->> (dissoc service-type-map "Moleben" "")
+  (->> (dissoc service-type-map moleben-text "")
        (keys)
        (cons all-english)
        (str/join "|")

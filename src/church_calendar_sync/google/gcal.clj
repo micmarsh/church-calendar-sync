@@ -15,10 +15,28 @@
 (def ^:private timezone
   (ZoneId/of "America/Detroit"))
 
-(defn local-dt->rfc3339 [local-date-time]
-  (-> local-date-time
-      (.atZone timezone)
-      (.format java.time.format.DateTimeFormatter/ISO_OFFSET_DATE_TIME)))
+(defprotocol RFC-3339
+  (->rfc3339 [obj]))
+(extend-protocol RFC-3339
+  java.time.LocalDateTime
+  (->rfc3339
+    [local-date-time]
+    (-> local-date-time
+        (.atZone timezone)
+        (.format java.time.format.DateTimeFormatter/ISO_OFFSET_DATE_TIME)))
+  java.time.LocalDate
+  (->rfc3339
+    [local-date]
+    (-> local-date
+        (.atTime 0 0)
+        (->rfc3339)))
+  java.lang.String
+  (->rfc3339
+   [str]
+   (let [java-obj (try (java.time.LocalDateTime/parse str) 
+                       (catch java.time.format.DateTimeParseException _
+                         (java.time.LocalDate/parse str)))]
+     (->rfc3339 java-obj))))
 
 (def ^:const base-api
   "https://www.googleapis.com/calendar/v3/")
@@ -45,8 +63,8 @@
   (s/assert ::oauth/req-auth-parts token)
   (-> (str base-api "calendars/" (client/url-encode calendar-id) "/events")
       (client/get (-> (json token)
-                      (assoc :query-params {"timeMin" (local-dt->rfc3339 start-date)
-                                            "timeMax" (local-dt->rfc3339 end-date)})))
+                      (assoc :query-params {"timeMin" (->rfc3339 (.toLocalDate start-date))
+                                            "timeMax" (->rfc3339 end-date)})))
       read-resp))
 
 
@@ -107,7 +125,7 @@
   ;; (clojure.pprint/pprint events)
   (->> events
        (mapv (partial insert-event calendar-id token))
-       (map (comp :body read-resp))))
+       (map (comp parse-json :body deref))))
 
 (comment
   (def calendar-id "78c12c8508d6ebb0b919960e6300c1898c1c8f7594d160d47836bf03854db066@group.calendar.google.com")
