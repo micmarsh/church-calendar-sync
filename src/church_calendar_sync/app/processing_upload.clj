@@ -7,6 +7,7 @@
    [church-calendar-sync.import.jopendocument :refer [sheet-from-file]]
    [church-calendar-sync.spec :as spec]
    [church-calendar-sync.storage.config :as config]
+   [church-calendar-sync.storage.impls :as impl]
    [church-calendar-sync.utils :refer [sort-by-date]]
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
@@ -191,6 +192,8 @@
 
 (defn sync-to-calendar [{:keys [token-storage config-storage] :as ctx} req]
   (s/assert ::spec/req-ctx ctx)
-  (if-let [events-to-add @events-to-add-cache]
-    nil
-    (response/redirect "/main"))) ;; todo: move these to another ns?
+  (let [{:keys [calendar auth]} (impl/get-saved-settings ctx)
+        events-to-add (::events-to-add @events-to-add-cache)]
+    (if (or (nil? calendar) (nil? auth) (nil? events-to-add))
+      (response/redirect "/main")  ;; todo: move these to another ns? Another use case for custom messaging/redirect if needed as well
+      (gcal/insert-events (:id calendar) auth events-to-add))))

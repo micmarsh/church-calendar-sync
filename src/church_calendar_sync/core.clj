@@ -47,7 +47,7 @@
              (response/not-found "Not found")))))
 
 (defn ->app [creds]
-  (let [storage storage/storage-atom
+  (let [storage @storage/storage-file
         ctx (assoc creds :token-storage storage :config-storage storage)] 
     (-> (-base-app-handler ctx) wrap-params wrap-multipart-params)))
 

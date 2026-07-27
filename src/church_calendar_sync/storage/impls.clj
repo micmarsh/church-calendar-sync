@@ -1,9 +1,11 @@
 (ns church-calendar-sync.storage.impls 
   (:require
     [church-calendar-sync.google.oauth.storage :as storage]
-    [church-calendar-sync.storage.config :refer [ConfigStorage]]
+    [church-calendar-sync.spec :as spec]
+    [church-calendar-sync.storage.config :refer [ConfigStorage get-config]]
     [church-calendar-sync.utils :refer [parse-edn]]
-    [clojure.java.io :as io]))
+    [clojure.java.io :as io]
+    [clojure.spec.alpha :as s]))
 
 (defonce storage-atom (atom nil))
 (extend-type clojure.lang.Atom
@@ -36,3 +38,9 @@
                          (file-contents *)
                          (assoc-in * [:config k] v)
                          (spit (.getPath f) (str *)))))
+
+
+(defn get-saved-settings [{:keys [token-storage config-storage] :as ctx}]
+  (s/assert ::spec/storage ctx)
+  {:auth (storage/get-token token-storage)
+   :calendar (get-config config-storage :church-calendar-sync.app/current-calendar)})
