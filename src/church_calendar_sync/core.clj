@@ -37,7 +37,7 @@
              [:get app/main-view-path] (page (app/main ctx))
 
              [:post app/upload-view-path] (page (app/processing-upload ctx req))
-             [:post app/sync-to-calendar-path (page app/sync-to-calendar)]
+             [:post app/sync-to-calendar-path] (page (app/sync-to-calendar ctx req))
 
              [:get app/calendar-list-path] (page (app/calendar-list ctx))
              [:post app/select-calendar-path] (page (app/select-calendar ctx req))
