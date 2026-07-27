@@ -32,6 +32,7 @@
   (s/assert ::spec/req-ctx ctx)
   (let [oauth-redirect-path (oauth/local-redirect-path ctx)]
     (fn [{:keys [request-method uri] :as req}]
+      (println request-method " " uri)
       (cond= [request-method uri]
              [:get app/main-view-path] (page (app/main ctx))
 
@@ -46,7 +47,8 @@
              (response/not-found "Not found")))))
 
 (defn ->app [creds]
-  (let [ctx (assoc creds :token-storage @storage/storage-file :config-storage @storage/storage-file)] 
+  (let [storage @storage/storage-file
+        ctx (assoc creds :token-storage storage :config-storage storage)] 
     (-> (-base-app-handler ctx) wrap-params wrap-multipart-params)))
 
 ;; to be able to shut down in repl testing

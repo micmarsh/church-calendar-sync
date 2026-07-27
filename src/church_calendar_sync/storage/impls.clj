@@ -17,8 +17,11 @@
 (def storage-file (delay (io/file (str (System/getProperty "user.home") "/.config/calendar_sync.edn"))))
 (defn- file-contents [^java.io.File f]
   (-> f (.getParentFile) (.mkdirs))
-  (.createNewFile f)
-  (parse-edn (slurp (.getPath f))))
+  (.createNewFile f) 
+  (let [config-str (slurp (.getPath f))] 
+    (if (empty? config-str) 
+      { } 
+      (parse-edn config-str))))
 
 (extend-type java.io.File
   storage/TokenStorage
