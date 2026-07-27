@@ -28,25 +28,23 @@
 
 (def ^:const upload-view-path "/ods-upload")
 
-(defn ods-upload [{:keys [token-storage config-storage]}]
-  (let [auth (storage/get-token token-storage)
-        calendar (config/get-config config-storage ::current-calendar)]
-    [:form {:action upload-view-path :method "post" :enctype "multipart/form-data"}
-     "Select file to upload: "
-     [:input {:type "file" :name uploaded-file-name}]
-     [:p]
-     [:input (cond-> {:type "submit" :value "Upload"}
-               (or (nil? calendar) (nil? auth)) (assoc :disabled true))]]))
+(defn ods-upload [ctx]
+  [:form {:action upload-view-path :method "post" :enctype "multipart/form-data"}
+   "Select file to upload: "
+   [:input {:type "file" :name uploaded-file-name}]
+   [:p]
+   [:input (cond-> {:type "submit" :value "Upload"}
+             (s/valid? ::spec/syncable-req-ctx ctx) (assoc :disabled true))]])
 
 (defn- google-login [ctx]
   (s/assert ::spec/base-req-ctx ctx)
-  (if-let [auth (storage/get-token (:token-storage ctx))]
+  (if (s/valid? ::spec/oauthed-req-ctx ctx)
     [:div "Logged into google successfully"]
     [:div [:a {:href (oauth/get-raw-oath-url ctx)} "Log in to Google"]]))
 
 (def ^:const calendar-list-path  "/calendar-list")
 
-(defn- current-calendar [{:keys [config-storage] :as ctx}]
+(defn- current-calendar [{:keys [config-storage]}]
   (if-let [{:keys [summary id]} (config/get-config config-storage ::current-calendar)]
     [:div 
      [:div "Will sync to calendar \"" [:a {:href (str "https://calendar.google.com/calendar/u/0/r?cid=" id)} summary] \"]
@@ -57,29 +55,23 @@
 
 (def ^:const select-calendar-param "calendar-selection")
 
-(defn calendar-list [{:keys [token-storage] :as ctx}]
-  (s/assert ::spec/base-req-ctx ctx)
-  (if-let [token-result (storage/get-token token-storage)]
-    ;;todo something on 400 or 500? May want functions to throw and a unified middlware for all error types?
-    ;;also there's generally a ton going on in this function in general 
-    (let [calendars (->> (gcal/get-calendars token-result) :body :items (filter (comp #{"owner"} :access-role)))]
-      [:body
-       [:h2 "Select a Calendar to Sync to"]
-       [:form {:action select-calendar-path :method "post"}
-        (for [{:keys [id summary] :as cal} calendars
-              node [[:input {:type "radio" :name select-calendar-param :value (str (select-keys cal [:id :summary :time-zone])) :id id}]
-                    [:label {:for id} summary]
-                    [:br]]]
-          node)
-        [:input {:type "submit" :value "Submit"}]]])
-    (do 
-      (set-oauth-redirect! calendar-list-path)
-      (response/redirect (oauth/get-raw-oath-url ctx)))))
+(defn calendar-list [{::oauth/keys [expiring-token-result] :as ctx}]
+  (s/assert ::spec/oauthed-req-ctx ctx)
+  (let [calendars (->> (gcal/get-calendars expiring-token-result) :body :items (filter (comp #{"owner"} :access-role)))]
+    [:body
+     [:h2 "Select a Calendar to Sync to"]
+     [:form {:action select-calendar-path :method "post"}
+      (for [{:keys [id summary] :as cal} calendars
+            node [[:input {:type "radio" :name select-calendar-param :value (str (select-keys cal [:id :summary :time-zone])) :id id}]
+                  [:label {:for id} summary]
+                  [:br]]]
+        node)
+      [:input {:type "submit" :value "Submit"}]]]))
 
-#_(->> (gcal/calendars (storage/get-token church-calendar-sync.core/storage-atom))
-       :body
-       :items
-       (take 3))
+
+#_(do
+    (set-oauth-redirect! calendar-list-path)
+    (response/redirect (oauth/get-raw-oath-url ctx)))
 
 #_(swap! church-calendar-sync.core/storage-atom assoc :config nil)
 

@@ -113,12 +113,9 @@
   (and (or (some-> start :time-zone gcal/eastern?) (:date start))
        (or (some-> end :time-zone gcal/eastern?) (:date end))))
 
-(defn- prepare-add-events [{:keys [token-storage config-storage] :as ctx} services]
-  (let [auth (storage/get-token token-storage)
-        calendar (config/get-config config-storage :church-calendar-sync.app/current-calendar)
-
-        date-range (services-range services)
-        existing-events (-> (gcal/get-events (:id calendar) date-range auth) :body :items)
+(defn- prepare-add-events [{::spec/keys [calendar] ::oauth/keys [expiring-token-result]} services]
+  (let [date-range (services-range services)
+        existing-events (-> (gcal/get-events (:id calendar) date-range expiring-token-result) :body :items)
         existing-events-by-day (->> existing-events
                                     (filter keep-for-deduplication?)
                                     gcal-event-index)
@@ -178,7 +175,7 @@
 (defonce events-to-add-cache (atom nil))
 
 (defn run-initial [ctx {:keys [params] :as req}]
-  (s/assert ::spec/base-req-ctx ctx)
+  (s/assert ::spec/syncable-req-ctx ctx)
   (->> (get params uploaded-file-name)
        (:tempfile)
        (sheet-from-file)
@@ -190,7 +187,7 @@
        (add-events-hiccup)))
 
 (defn sync-to-calendar [{:keys [token-storage config-storage] :as ctx} req]
-  (s/assert ::spec/base-req-ctx ctx)
+  (s/assert ::spec/syncable-req-ctx ctx)
   (if-let [events-to-add @events-to-add-cache]
     nil
     (response/redirect "/main"))) ;; todo: move these to another ns?
