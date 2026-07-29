@@ -181,7 +181,6 @@
        (sheet-from-file)
        (ods-sheet->services import-sheet-config)
        (filter (comp service-lengths :service/type)) ;; todo some other way of handling/reporting on unknown services 
-       (take 10)
        (prepare-add-events ctx)
        (reset! events-to-add-cache)
        (add-events-hiccup)))
