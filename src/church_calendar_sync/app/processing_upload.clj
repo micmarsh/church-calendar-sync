@@ -31,7 +31,7 @@
 (defn- services-range [services]
   (->> (sort-by-date :event/date-time services)
        ((juxt (comp :event/date-time first) (comp :event/date-time last)))
-       ((fn [[start end]] {:start-date start :end-date end}))))
+       ((fn [[start end]] {:start-date start :end-date (.plusDays end 1)}))))
 
 (defn- event-day [{:keys [start]}]
   (let [{:keys [date-time date]} start]
