@@ -2,11 +2,9 @@
   (:require
    [church-calendar-sync.google.gcal :as gcal]
    [church-calendar-sync.google.oauth :as oauth]
-   [church-calendar-sync.google.oauth.storage :as storage]
    [church-calendar-sync.import :refer [ods-sheet->services service-type-map]]
    [church-calendar-sync.import.jopendocument :refer [sheet-from-file]]
    [church-calendar-sync.spec :as spec]
-   [church-calendar-sync.storage.config :as config]
    [church-calendar-sync.storage.impls :as impl]
    [church-calendar-sync.utils :refer [sort-by-date]]
    [clojure.spec.alpha :as s]
@@ -114,10 +112,8 @@
   (and (or (some-> start :time-zone gcal/eastern?) (:date start))
        (or (some-> end :time-zone gcal/eastern?) (:date end))))
 
-(defn- prepare-add-events [{:keys [token-storage config-storage] :as ctx} services]
-  (let [auth (storage/get-token token-storage)
-        calendar (config/get-config config-storage :church-calendar-sync.app/current-calendar)
-
+(defn- prepare-add-events [ctx services] 
+  (let [{:keys [auth calendar]} (impl/get-saved-settings ctx)
         date-range (services-range services)
         existing-events (-> (gcal/get-events (:id calendar) date-range auth) :body :items)
         existing-events-by-day (->> existing-events
@@ -190,7 +186,7 @@
        (reset! events-to-add-cache)
        (add-events-hiccup)))
 
-(defn sync-to-calendar [{:keys [token-storage config-storage] :as ctx} req]
+(defn sync-to-calendar [ctx req]
   (s/assert ::spec/req-ctx ctx)
   (let [{:keys [calendar auth]} (impl/get-saved-settings ctx)
         events-to-add (::events-to-add @events-to-add-cache)]

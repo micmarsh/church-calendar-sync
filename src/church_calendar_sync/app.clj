@@ -8,7 +8,8 @@
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [ring.util.response :as response]
-            [clojure.edn :as edn]))
+            [clojure.edn :as edn]
+            [church-calendar-sync.storage.impls :as impl]))
 
 (def ^:const htmx-load
   [:script {:src "https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"
@@ -28,9 +29,8 @@
 
 (def ^:const upload-view-path "/ods-upload")
 
-(defn ods-upload [{:keys [token-storage config-storage]}]
-  (let [auth (storage/get-token token-storage)
-        calendar (config/get-config config-storage ::current-calendar)]
+(defn ods-upload [ctx] 
+  (let [{:keys [auth calendar]} (impl/get-saved-settings ctx)]
     [:form {:action upload-view-path :method "post" :enctype "multipart/form-data"}
      "Select file to upload: "
      [:input {:type "file" :name uploaded-file-name}]
