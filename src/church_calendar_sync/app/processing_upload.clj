@@ -98,13 +98,6 @@
                 :end {:date (.format day java.time.format.DateTimeFormatter/ISO_DATE)}
                 :summary (:service/feast service)})])))
 
-;; todo just inline this once it's ready?
-(defn- add-events [calendar auth gcal-events]
-  ;(s/assert map? calendar) todo real spec?
-  (s/assert ::oauth/token-result auth)
-  (s/assert ::gcal/events gcal-events)
-  (gcal/insert-events (:id calendar) auth gcal-events))
-
 (defn keep-for-deduplication?
   "Checks if time zone is either eastern or doesn't specify tz at all"
   [{:keys [start end] :as event}]

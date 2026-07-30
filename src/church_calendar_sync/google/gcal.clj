@@ -3,6 +3,7 @@
    [church-calendar-sync.google.oauth :as oauth]
    [church-calendar-sync.spec :as spec]
    [church-calendar-sync.utils :refer [parse-json serialize-json]]
+   [clojure.core.async :as a]
    [clojure.spec.alpha :as s]
    [org.httpkit.client :as client])
   (:import
@@ -32,11 +33,11 @@
         (->rfc3339)))
   java.lang.String
   (->rfc3339
-   [str]
-   (let [java-obj (try (java.time.LocalDateTime/parse str) 
-                       (catch java.time.format.DateTimeParseException _
-                         (java.time.LocalDate/parse str)))]
-     (->rfc3339 java-obj))))
+    [str]
+    (let [java-obj (try (java.time.LocalDateTime/parse str)
+                        (catch java.time.format.DateTimeParseException _
+                          (java.time.LocalDate/parse str)))]
+      (->rfc3339 java-obj))))
 
 (def ^:const base-api
   "https://www.googleapis.com/calendar/v3/")
@@ -111,10 +112,35 @@
 
 (s/def ::events (s/coll-of ::event))
 
-(defn insert-event [calendar-id token event]
-  (-> base-api
-      (str "calendars/" (client/url-encode calendar-id) "/events")
-      (client/post (-> (json token) (assoc :body (serialize-json event))))))
+(defn- resp-error? 
+  [{:keys [error body]}]
+  (or error (:error body)))
+
+(defn insert-event
+  ([calendar-id token event]
+   (let [result (a/promise-chan)]
+     (insert-event calendar-id token event
+                   {:attempts 1
+                    :result result
+                    :wait-ms 1000})
+     result))
+  ([calendar-id token event {:keys [attempts result wait-ms] :as retry-opts}]
+   (-> base-api
+       (str "calendars/" (client/url-encode calendar-id) "/events")
+       (client/post (-> (json token) (assoc :body (serialize-json event)))
+                    (fn [resp']
+                      (let [resp (update resp' :body parse-json)]
+                        (a/go 
+                          (if (and (resp-error? resp) (< attempts 10))
+                            (do
+                              (println "Error saving event, retry attempt " attempts)
+                              (a/<! (a/timeout wait-ms))
+                              (insert-event calendar-id token event
+                                            (-> retry-opts
+                                                (update :attempts inc)
+                                                (update :wait-ms * 2))))
+                            (a/>! result resp)))))))
+   result))
 
 (defn insert-events
   [calendar-id token events]
@@ -125,8 +151,7 @@
   ;; (clojure.pprint/pprint events)
   (->> events
        (mapv (partial insert-event calendar-id token))
-       (map (comp parse-json :body deref))))
+       (map (comp :body a/<!!))))
 
-(comment
-  )
+(comment)
 
