@@ -2,6 +2,7 @@
   (:require
    [clojure.core.async :as a]))
 
+;; what to do about exceptions? Only relevant for futures?
 (defn pending->chan [p]
   (a/go-loop [wait-ms 200]
     (if (realized? p)
@@ -17,6 +18,13 @@
   clojure.core.async.impl.channels.ManyToManyChannel
   (->chan [obj] obj))
 
+(defn fmap 
+  "Maps the given function over the given async object.
+   Not really a Functor because will coerce whatever its given into a channel"
+  [f obj]
+  (let [c (->chan obj)]
+    (a/go (f (a/<! c)))))
+
 (defn with-retry 
   "Will returns a version of 'func' that retries according to the given schedule.
    Converts 'func' into a channel-returning function if it isn't already"
@@ -28,6 +36,7 @@
                 value (a/<! (->chan (apply func args)))]
       (if (and (error? value) (< current-attempt max-attempts))
         (do 
+          (println "DEBUG (delete this) retry attempt " current-attempt)
           (a/<! (a/timeout wait-ms))
           (recur (update sched :wait-ms increment)
                  (inc current-attempt)

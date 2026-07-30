@@ -3,9 +3,11 @@
    [church-calendar-sync.google.oauth :as oauth]
    [church-calendar-sync.spec :as spec]
    [church-calendar-sync.utils :refer [parse-json serialize-json]]
+   [church-calendar-sync.utils.async :as async]
    [clojure.core.async :as a]
    [clojure.spec.alpha :as s]
-   [org.httpkit.client :as client])
+   [org.httpkit.client :as client]
+   [ring.util.response :as resp])
   (:import
    [java.time ZoneId]))
 
@@ -131,32 +133,20 @@
   [{:keys [error body]}]
   (or error (:error body)))
 
+(def ^:private post-json-resp
+  (comp (partial async/fmap #(update % :body parse-json)) client/post))
 
-(defn insert-event
-  ([calendar-id token event]
-   (let [result (a/promise-chan)]
-     (insert-event calendar-id token event
-                   {:attempts 1
-                    :result result
-                    :wait-ms 1000})
-     result))
-  ([calendar-id token event {:keys [attempts result wait-ms] :as retry-opts}]
-   (-> base-api
-       (str "calendars/" (client/url-encode calendar-id) "/events")
-       (client/post (-> (json token) (assoc :body (serialize-json event)))
-                    (fn [resp']
-                      (let [resp (update resp' :body parse-json)]
-                        (a/go 
-                          (if (and (resp-error? resp) (< attempts 10))
-                            (do
-                              (println "Error saving event, retry attempt " attempts)
-                              (a/<! (a/timeout wait-ms))
-                              (insert-event calendar-id token event
-                                            (-> retry-opts
-                                                (update :attempts inc)
-                                                (update :wait-ms * 2))))
-                            (a/>! result resp)))))))
-   result))
+(def post' (async/with-retry post-json-resp
+             {:error? resp-error?
+              :increment (partial * 2)
+              :wait-ms 500
+              :max-attempts 10}))
+
+(defn insert-event 
+  [calendar-id token event]
+  (-> base-api
+      (str "calendars/" (client/url-encode calendar-id) "/events")
+      (post' (-> (json token) (assoc :body (serialize-json event))))) ())
 
 (defn insert-events
   [calendar-id token events]
