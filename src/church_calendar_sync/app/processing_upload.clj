@@ -143,9 +143,15 @@
   [event]
   (str (event-day event) "T" (event-time event) " " (:summary event)))
 
+(defn- trim-display [str']
+  (if (> (count str') 75) 
+    (str (str/join (take 72 str')) "...")
+    str'))
+
 (defn display-all [items]
   (->> items
-       (map display) 
+       (map display)
+       (map trim-display)
        (sort)
        (map (partial vector :li))
        (vector :ul)))
