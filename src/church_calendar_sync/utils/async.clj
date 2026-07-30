@@ -36,7 +36,6 @@
                 value (a/<! (->chan (apply func args)))]
       (if (and (error? value) (< current-attempt max-attempts))
         (do 
-          (println "DEBUG (delete this) retry attempt " current-attempt)
           (a/<! (a/timeout wait-ms))
           (recur (update sched :wait-ms increment)
                  (inc current-attempt)

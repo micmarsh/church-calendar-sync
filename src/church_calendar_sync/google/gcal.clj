@@ -6,8 +6,7 @@
    [church-calendar-sync.utils.async :as async]
    [clojure.core.async :as a]
    [clojure.spec.alpha :as s]
-   [org.httpkit.client :as client]
-   [ring.util.response :as resp])
+   [org.httpkit.client :as client])
   (:import
    [java.time ZoneId]))
 
@@ -134,7 +133,7 @@
   (or error (:error body)))
 
 (def ^:private post-json-resp
-  (comp (partial async/fmap #(update % :body parse-json)) client/post))
+    (comp (partial async/fmap #(update % :body parse-json)) client/post))
 
 (def post' (async/with-retry post-json-resp
              {:error? resp-error?
@@ -146,7 +145,7 @@
   [calendar-id token event]
   (-> base-api
       (str "calendars/" (client/url-encode calendar-id) "/events")
-      (post' (-> (json token) (assoc :body (serialize-json event))))) ())
+      (post' (-> (json token) (assoc :body (serialize-json event))))))
 
 (defn insert-events
   [calendar-id token events]
