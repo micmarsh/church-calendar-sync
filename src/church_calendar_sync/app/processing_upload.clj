@@ -184,10 +184,16 @@
        (reset! events-to-add-cache)
        (add-events-hiccup)))
 
+(def ^:const redirect-after-s 10)
+
 (defn sync-to-calendar [ctx req]
   (s/assert ::spec/req-ctx ctx)
   (let [{:keys [calendar auth]} (impl/get-saved-settings ctx)
         events-to-add (::events-to-add @events-to-add-cache)]
     (if (or (nil? calendar) (nil? auth) (nil? events-to-add))
       (response/redirect "/main")  ;; todo: move these to another ns? Another use case for custom messaging/redirect if needed as well
-      (gcal/insert-events (:id calendar) auth events-to-add))))
+      (do
+        (future (gcal/insert-events (:id calendar) auth events-to-add))
+        [:body
+         [:meta {:http-equiv "refresh" :content (str redirect-after-s ";url=/main")}] ;; todo consolidate main string OR need new location for "upload results"
+         [:body [:h2 "Redirecting in " redirect-after-s " seconds"]]]))))
