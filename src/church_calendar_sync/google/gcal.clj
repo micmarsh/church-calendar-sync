@@ -62,12 +62,13 @@
    token]
   (s/assert ::date-range params)
   (s/assert ::oauth/req-auth-parts token)
-  (-> (str base-api "calendars/" (client/url-encode calendar-id) "/events")
+  (-> base-api
+      (str "calendars/" (client/url-encode calendar-id) "/events")
       (client/get (-> (json token)
                       (assoc :query-params {"timeMin" (->rfc3339 (.toLocalDate start-date))
                                             "timeMax" (->rfc3339 end-date)})))
-      read-resp))
-
+      read-resp
+      (#(do (println %) %))))
 
 (defn ->date-time [input]
   (try
@@ -146,12 +147,6 @@
   [calendar-id token events]
   (s/assert ::oauth/req-auth-parts token)
   (s/assert ::events events)
-  ;; (clojure.pprint/pprint calendar-id)
-  ;; (clojure.pprint/pprint token)
-  ;; (clojure.pprint/pprint events)
   (->> events
        (mapv (partial insert-event calendar-id token))
        (map (comp :body a/<!!))))
-
-(comment)
-
