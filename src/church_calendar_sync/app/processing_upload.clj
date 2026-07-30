@@ -108,7 +108,7 @@
 (defn- prepare-add-events [ctx services] 
   (let [{:keys [auth calendar]} (impl/get-saved-settings ctx)
         date-range (services-range services)
-        existing-events (-> (gcal/get-events (:id calendar) date-range auth) :body :items)
+        existing-events (gcal/get-events (:id calendar) date-range auth)
         existing-events-by-day (->> existing-events
                                     (filter keep-for-deduplication?)
                                     gcal-event-index)

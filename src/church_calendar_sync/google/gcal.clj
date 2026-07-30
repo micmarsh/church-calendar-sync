@@ -56,19 +56,34 @@
       (client/get (json token))
       read-resp))
 
-(defn get-events
+
+(defn- query-events
   [calendar-id
-   {:keys [start-date end-date] :as params}
+   {:keys [start-date end-date page-token]}
    token]
-  (s/assert ::date-range params)
-  (s/assert ::oauth/req-auth-parts token)
   (-> base-api
       (str "calendars/" (client/url-encode calendar-id) "/events")
       (client/get (-> (json token)
-                      (assoc :query-params {"timeMin" (->rfc3339 (.toLocalDate start-date))
-                                            "timeMax" (->rfc3339 end-date)})))
-      read-resp
-      (#(do (println %) %))))
+                      (assoc :query-params
+                             (cond-> {"timeMin" (->rfc3339 (.toLocalDate start-date))
+                                      "timeMax" (->rfc3339 end-date)
+                                      "maxResults" 500}
+                               page-token (assoc "pageToken" page-token)))))))
+
+(defn get-events
+  [calendar-id params token]
+  (s/assert ::date-range params)
+  (s/assert ::oauth/req-auth-parts token)
+  (let [fetch #(read-resp (query-events calendar-id % token))]
+    
+    (loop [{:keys [body] :as resp} (fetch params)
+           results []]
+      (let [page-token (:next-page-token body)
+            new-results (concat results (:items body))]
+        (if page-token
+          (recur (fetch (assoc params :page-token page-token))
+                 new-results)
+          new-results)))))
 
 (defn ->date-time [input]
   (try
