@@ -131,6 +131,7 @@
   [{:keys [error body]}]
   (or error (:error body)))
 
+
 (defn insert-event
   ([calendar-id token event]
    (let [result (a/promise-chan)]

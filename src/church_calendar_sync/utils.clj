@@ -53,16 +53,3 @@
     `(cond
        ~@(equals-cond-clauses value (drop-last forms))
        :else ~(last forms))))
-
-;; should be ready to go if "needed", just add core.async!
-;; maybe make this do promise -> chan / chan -> chan, then make sure blocking deref is implemented on chans for "outside world"?
-;; or just tell "outside world" to deal with it?
-#_(defn fmap [f p]
-   (let [result-p (promise)]
-     (a/go-loop []
-       (if (realized? p)
-         (deliver result-p (f @p))
-         (do
-           (<! (a/timeout 100))
-           (recur))))
-     result-p))
