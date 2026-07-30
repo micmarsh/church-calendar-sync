@@ -95,7 +95,6 @@
     (java.time.LocalDate/parse input)
     (catch Exception e)))
 
-;;todo move these..., to gcal?
 (s/def :google-json/date-time ->date-time)
 
 (defn eastern? [tz-str]
@@ -106,7 +105,7 @@
       (#{"ET" "EST" "EDT"} short-name))
     (catch Exception e)))
 
-(s/def :google-json/time-zone eastern?)
+(s/def :google-json/time-zone #(try (java.time.ZoneId/of %) (catch java.time.zone.ZoneRulesException e)))
 (s/def :google-json/zoned-date-time (s/keys :req-un [:google-json/date-time :google-json/time-zone]))
 
 (s/def :google-json/summary string?)
