@@ -12,7 +12,8 @@
    [ring.middleware.multipart-params :refer [wrap-multipart-params]]
    [ring.middleware.params :refer [wrap-params]]
    [ring.util.response :as response]
-   [time-literals.read-write]))
+   [time-literals.read-write])
+  (:gen-class))
 (time-literals.read-write/print-time-literals-clj!)
 
 
