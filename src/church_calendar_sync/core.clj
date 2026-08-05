@@ -42,6 +42,8 @@
              [:get app/calendar-list-path] (page (app/calendar-list ctx))
              [:post app/select-calendar-path] (page (app/select-calendar ctx req))
 
+             [:get app/download-file-path] (app/download-last-file)
+
              [:get oauth-redirect-path] (app/oauth-get-token ctx req)
 
              (response/not-found "Not found")))))

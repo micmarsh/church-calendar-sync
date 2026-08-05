@@ -1,7 +1,7 @@
 (ns church-calendar-sync.app.processing-upload
   (:require
+   [church-calendar-sync.export :refer [export-to-pdf]]
    [church-calendar-sync.google.gcal :as gcal]
-   [church-calendar-sync.google.oauth :as oauth]
    [church-calendar-sync.import :refer [ods-sheet->services service-type-map]]
    [church-calendar-sync.import.jopendocument :refer [file->sheet]]
    [church-calendar-sync.spec :as spec]
@@ -9,7 +9,8 @@
    [church-calendar-sync.utils :refer [sort-by-date]]
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
-   [ring.util.response :as response])
+   [ring.util.response :as response]
+   [clojure.java.io :as io])
   (:import
    [java.time Duration]))
 
@@ -105,7 +106,7 @@
   (and (or (some-> start :time-zone gcal/eastern?) (:date start))
        (or (some-> end :time-zone gcal/eastern?) (:date end))))
 
-(defn- prepare-add-events [ctx services] 
+(defn- prepare-add-events [ctx services]
   (let [{:keys [auth calendar]} (impl/get-saved-settings ctx)
         date-range (services-range services)
         existing-events (gcal/get-events (:id calendar) date-range auth)
@@ -144,7 +145,7 @@
   (str (event-day event) "T" (event-time event) " " (:summary event)))
 
 (defn- trim-display [str']
-  (if (> (count str') 75) 
+  (if (> (count str') 75)
     (str (str/join (take 72 str')) "...")
     str'))
 
@@ -158,31 +159,56 @@
 
 (def ^:const sync-to-calendar-path "/sync-to-calendar")
 
-(defn- add-events-hiccup
+(defonce ^:private download-file (atom nil))
+
+(def ^:const download-last-pdf-path "/download_last")
+
+(defn download-last-file []
+  {:status 200
+   :body (io/input-stream @download-file)})
+
+(defn pdf-download-link []
+  (when @download-file
+    [:a {:download "Schedule.pdf" :href download-last-pdf-path} "Download last uploaded file as PDF"]))
+
+(defn- pre-sync-hiccup
   [{::keys [services-from-file
             events-from-calendar
             events-to-add] :as input}]
   (s/assert ::initial-ui-input input)
   [:body
+   (pdf-download-link)
    [:form {:action sync-to-calendar-path :method "post"}
-    [:div{ :style {:display "flex" :justify-content "space-around"}}
+    [:div {:style {:display "flex" :justify-content "space-around"}}
      [:div [:h3 "Services from File"] (display-all services-from-file)]
      [:div [:h3 "Events from Calendar"] (display-all events-from-calendar)]
-     [:div [:h3 "Events to Add"] (display-all events-to-add)]] 
+     [:div [:h3 "Events to Add"] (display-all events-to-add)]]
     [:input {:type "submit" :value "Sync"}]]])
 
 (defonce events-to-add-cache (atom nil))
 
-(defn run-initial [ctx {:keys [params] :as req}]
-  (s/assert ::spec/req-ctx ctx)
-  (->> (get params uploaded-file-name)
-       (:tempfile)
+(defn- prepare-gcal-sync [ctx file]
+  (->> file
        (file->sheet)
        (ods-sheet->services import-sheet-config)
        (filter (comp service-lengths :service/type)) ;; todo some other way of handling/reporting on unknown services 
        (prepare-add-events ctx)
-       (reset! events-to-add-cache)
-       (add-events-hiccup)))
+       (reset! events-to-add-cache)))
+
+(defn- prepare-pdf-download [ods-file]
+  (->> ods-file
+       (.getPath)
+       (export-to-pdf)
+       (reset! download-file))
+  ods-file)
+
+(defn run-initial [ctx {:keys [params] :as req}]
+  (s/assert ::spec/req-ctx ctx)
+  (let [file (:tempfile (get params uploaded-file-name))]
+    (->> file
+         (prepare-pdf-download)
+         (prepare-gcal-sync ctx)
+         (pre-sync-hiccup))))
 
 (def ^:const redirect-after-s 10)
 
@@ -196,4 +222,7 @@
         (future (gcal/insert-events (:id calendar) auth events-to-add))
         [:body
          [:meta {:http-equiv "refresh" :content (str redirect-after-s ";url=/main")}] ;; todo consolidate main string OR need new location for "upload results"
-         [:body [:h2 "Redirecting in " redirect-after-s " seconds"]]]))))
+         [:body
+          [:h2 "Synchronizing to Google Calendar"]
+          [:h3 "Redirecting in " redirect-after-s " seconds"]
+          (pdf-download-link)]]))))

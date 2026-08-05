@@ -87,6 +87,7 @@
    [:h1 "Calendar Sync"]
    (ods-upload context)
    (current-calendar context)
+   (processing-upload/pdf-download-link)
    [:br]
    [:br]
    (google-login context)
@@ -97,6 +98,8 @@
 (def ^:const sync-to-calendar-path processing-upload/sync-to-calendar-path)
 
 (def sync-to-calendar processing-upload/sync-to-calendar)
+(def download-file-path processing-upload/download-last-pdf-path)
+(def download-last-file processing-upload/download-last-file)
 
 (defn- assoc-expires-time [{:keys [expires-in] :as token-result}]
   (assoc token-result :expires (.plusSeconds (java.time.LocalDateTime/now) expires-in)))
