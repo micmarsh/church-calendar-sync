@@ -76,13 +76,6 @@
       (set-oauth-redirect! calendar-list-path)
       (response/redirect (oauth/get-raw-oath-url ctx)))))
 
-#_(->> (gcal/calendars (storage/get-token church-calendar-sync.core/storage-atom))
-       :body
-       :items
-       (take 3))
-
-#_(swap! church-calendar-sync.core/storage-atom assoc :config nil)
-
 (defn select-calendar [{:keys [config-storage] :as ctx} {:keys [params] :as req}]
   (s/assert ::spec/req-ctx ctx) 
   (config/put-config! config-storage ::current-calendar (-> params (get select-calendar-param) (edn/read-string)))

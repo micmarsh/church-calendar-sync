@@ -3,7 +3,7 @@
    [church-calendar-sync.google.gcal :as gcal]
    [church-calendar-sync.google.oauth :as oauth]
    [church-calendar-sync.import :refer [ods-sheet->services service-type-map]]
-   [church-calendar-sync.import.jopendocument :refer [sheet-from-file]]
+   [church-calendar-sync.import.jopendocument :refer [file->sheet]]
    [church-calendar-sync.spec :as spec]
    [church-calendar-sync.storage.impls :as impl]
    [church-calendar-sync.utils :refer [sort-by-date]]
@@ -177,7 +177,7 @@
   (s/assert ::spec/req-ctx ctx)
   (->> (get params uploaded-file-name)
        (:tempfile)
-       (sheet-from-file)
+       (file->sheet)
        (ods-sheet->services import-sheet-config)
        (filter (comp service-lengths :service/type)) ;; todo some other way of handling/reporting on unknown services 
        (prepare-add-events ctx)
