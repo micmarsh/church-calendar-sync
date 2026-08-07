@@ -1,6 +1,6 @@
 (defproject church-calendar-sync "0.1.0"
   :description "Tool for synchronizing a STV service schedule spreadsheet to gCal, PDF, and (eventually) Google sheets service sign-up"
-  :url "https://example.com/FIXME"
+  :url "https://github.com/micmarsh/church-calendar-sync"
   :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"
             :url "https://www.eclipse.org/legal/epl-2.0/"}
   :dependencies [[org.clojure/clojure "1.12.2"]
@@ -21,6 +21,7 @@
 
   ;; https://github.com/r4um/lein-jdeb/blob/master/src/leiningen/jdeb.clj#L53
   :deb-depends "libreoffice, default-jre | java7-runtime | java6-runtime" 
+  :deb-maintainer "Michael Marsh <mike@marsh.pw>"
 
   ;; thankfully will likely delete/clean this up soon
   ;;:resource-paths ["resources/iText-2.1.5.jar"]

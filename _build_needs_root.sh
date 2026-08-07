@@ -1,8 +1,7 @@
 #!/bin/sh
 
-# comment this out when testing (usually)
-# may also want to just build manually?
-lein jdeb
+# doesn't work in fakeroot?
+# lein jdeb
 
 tmp_dir=DELETE_ME_temp_for_build
 desktop_file_dir=${tmp_dir}/usr/share/applications
