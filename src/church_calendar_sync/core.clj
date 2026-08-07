@@ -60,9 +60,15 @@
 (defn -main [& args]
   (clojure.spec.alpha/check-asserts true)
   (let [creds @oauth-creds
-        port (oauth/local-port creds)]
-    (reset! server (server/run-server (->app creds) {:port port :join? false}))
-    (browse/browse-url (str "http://localhost:" port app/main-view-path))))
+        port (oauth/local-port creds)
+        open #(browse/browse-url (str "http://localhost:" port app/main-view-path))]
+    (try 
+      (reset! server (server/run-server (->app creds) {:port port :join? false}))
+      ;; todo some kind of thing here (for now, just to allow browse below to work)
+      (catch Exception e
+        ;; todo call open only if is "address already in use"
+        (println e)))
+    (open)))
 
 (comment
   (do
