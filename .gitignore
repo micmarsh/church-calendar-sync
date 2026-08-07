@@ -16,3 +16,5 @@ pom.xml.asc
 .lsp/
 .~lock*
 credentials.json
+*.deb
+*.changes

@@ -125,7 +125,9 @@
       (parse-json)
       (:web)))
 
-(s/def ::access-token (s/and string? #(> (count %) 300)))
+(def ^:const min-token-length 100)
+
+(s/def ::access-token (s/and string? #(> (count %) min-token-length)))
 (s/def ::expires-in pos-int?)
 (s/def ::scope uri-str?) ;; todo: this may not be right, could end up being csv of scopes or something? Or maybe need a new token per scope?
 (s/def ::token-type #{"Bearer"})
