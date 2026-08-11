@@ -4,4 +4,6 @@
 
 ./build.sh
 
-sudo apt install ./church-calendar-sync_0.1.0.deb 
+deb_file=$(ls | grep church-calendar-sync | grep .deb)
+
+sudo apt install ./${deb_file}

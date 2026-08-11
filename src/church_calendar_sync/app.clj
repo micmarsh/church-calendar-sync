@@ -89,8 +89,8 @@
    [:h1 "Calendar Sync"]
    (ods-upload context)
    (current-calendar context)
-   (processing-upload/pdf-download-link)
    [:br]
+   (processing-upload/pdf-download-link)
    [:br]
    (google-login context)
    [:br]

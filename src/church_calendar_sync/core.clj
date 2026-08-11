@@ -36,6 +36,12 @@
 
 (def ^:const health-check-path "/status")
 
+(defn- shutdown []
+  (let [message "Shutting down application server"]
+    (println message)
+    (future (Thread/sleep 1000) (System/exit 0))
+    (page [:body message])))
+
 (defn- -base-app-handler
   [ctx]
   (s/assert ::spec/req-ctx ctx)
@@ -57,10 +63,7 @@
 
              [:get health-check-path] {:status 200 :body "running"}
 
-             [:post app/shutdown-path] (let [message "Shutting down application server"]
-                                         (println message) 
-                                         (future (Thread/sleep 1000) (System/exit 0))
-                                         (page [:body message]))
+             [:post app/shutdown-path] (shutdown)
 
              (response/not-found "Not found")))))
 
@@ -75,8 +78,7 @@
   (try 
     (or (not= ::not-running (@server))
         (= 200 (:status @(client/get (str base-address health-check-path)))))
-    (catch Exception e 
-      false)))
+    (catch Exception e false)))
 
 (defn -main [& args]
   (clojure.spec.alpha/check-asserts true) ;; turn off for "production" (?)
@@ -89,7 +91,7 @@
         (println "Application is already running")
         (open))
       (do 
-        (println "Starting application server at " base-address)
+        (println "Starting application server at" base-address)
         (reset! server (server/run-server (->app creds) {:port port :join? false}))
         (open)))))
 
