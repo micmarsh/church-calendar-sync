@@ -9,6 +9,7 @@
    [clojure.spec.alpha :as s]
    [hiccup2.core :as h]
    [org.httpkit.server :as server]
+   [org.httpkit.client :as client]
    [ring.middleware.multipart-params :refer [wrap-multipart-params]]
    [ring.middleware.params :refer [wrap-params]]
    [ring.util.response :as response]
@@ -16,9 +17,14 @@
   (:gen-class))
 (time-literals.read-write/print-time-literals-clj!)
 
+(s/def :ring-resp/status (s/and #(>= % 100) #(<= % 599)))
+(s/def :ring-resp/headers (s/map-of string? string?))
+(s/def :ring-resp/body string?) ;; could technically be also input stream, others, etc.?
+(s/def ::ring-resp (s/keys :req-un [:ring-resp/status  :ring-resp/body]
+                           :opt-un [:ring-resp/headers]))
 
 (defn page [value]
-  (if (map? value)
+  (if (s/valid? ::ring-resp value)
     value
     {:status 200
      :headers {"Content-Type" "text/html"}
@@ -27,6 +33,8 @@
              value)}))
 
 (def oauth-creds (delay (oauth/web-credentials "credentials.json")))
+
+(def ^:const health-check-path "/status")
 
 (defn- -base-app-handler
   [ctx]
@@ -47,6 +55,8 @@
 
              [:get oauth-redirect-path] (app/oauth-get-token ctx req)
 
+             [:get health-check-path] {:status 200 :body "running"}
+
              (response/not-found "Not found")))))
 
 (defn ->app [creds]
@@ -54,25 +64,34 @@
         ctx (assoc creds :token-storage storage :config-storage storage)] 
     (-> (-base-app-handler ctx) wrap-params wrap-multipart-params)))
 
-;; to be able to shut down in repl testing
-(defonce server (atom (fn [])))
+(defonce server (atom (fn [] ::not-running)))
+
+(defn- already-running? [base-address]
+  (try 
+    (or (not= ::not-running (@server))
+        (= 200 (:status @(client/get (str base-address health-check-path)))))
+    (catch Exception e 
+      false)))
 
 (defn -main [& args]
-  (clojure.spec.alpha/check-asserts true)
+  (clojure.spec.alpha/check-asserts true) ;; turn off for "production" (?)
   (let [creds @oauth-creds
         port (oauth/local-port creds)
-        open #(browse/browse-url (str "http://localhost:" port app/main-view-path))]
-    (try 
-      (reset! server (server/run-server (->app creds) {:port port :join? false}))
-      ;; todo some kind of thing here (for now, just to allow browse below to work)
-      (catch Exception e
-        ;; todo call open only if is "address already in use"
-        (println e)))
-    (open)))
+        base-address (str "http://localhost:" port)
+        open #(browse/browse-url (str base-address app/main-view-path))]
+    (if (already-running? base-address)
+      (do 
+        (println "Application is already running")
+        (open))
+      (do 
+        (println "Starting application server at " base-address)
+        (reset! server (server/run-server (->app creds) {:port port :join? false}))
+        (open)))))
 
 (comment
   (do
     (@server)
+    (reset! server (fn [] ::not-running))
     (-main))
   )
 
