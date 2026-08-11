@@ -81,6 +81,8 @@
   (config/put-config! config-storage ::current-calendar (-> params (get select-calendar-param) (edn/read-string)))
   (response/redirect main-view-path))
 
+(def ^:const shutdown-path "/shutdown")
+
 (defn main [context]
   (s/assert ::spec/req-ctx context)
   [:body
@@ -91,6 +93,10 @@
    [:br]
    [:br]
    (google-login context)
+   [:br]
+   [:br]
+   [:form {:action shutdown-path :method "post"}
+    [:input {:type "Submit" :value "Shutdown App"}]]
    #_htmx-load])
 
 (def processing-upload processing-upload/run-initial)

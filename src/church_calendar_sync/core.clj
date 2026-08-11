@@ -57,6 +57,11 @@
 
              [:get health-check-path] {:status 200 :body "running"}
 
+             [:post app/shutdown-path] (let [message "Shutting down application server"]
+                                         (println message) 
+                                         (future (Thread/sleep 1000) (System/exit 0))
+                                         (page [:body message]))
+
              (response/not-found "Not found")))))
 
 (defn ->app [creds]
