@@ -116,12 +116,3 @@
         token-result (oauth/oauth-token code context)]
     (storage/put-token! token-storage (assoc-expires-time token-result)))
   (response/redirect (get-oauth-redirect!)))
-
-(comment
-  (.plusSeconds (java.time.LocalDateTime/now) 3600)
-
- (def members (:members *1))
-
- members 
- (map :name members)
-  )

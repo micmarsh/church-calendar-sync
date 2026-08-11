@@ -22,7 +22,4 @@
   ;; https://github.com/r4um/lein-jdeb/blob/master/src/leiningen/jdeb.clj#L53
   :deb-depends "libreoffice, default-jre | java7-runtime | java6-runtime" 
   :deb-maintainer "Michael Marsh <mike@marsh.pw>"
-
-  ;; thankfully will likely delete/clean this up soon
-  ;;:resource-paths ["resources/iText-2.1.5.jar"]
   )
