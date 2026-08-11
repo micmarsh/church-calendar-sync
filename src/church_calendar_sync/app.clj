@@ -71,7 +71,7 @@
                     [:label {:for id} summary]
                     [:br]]]
           node)
-        [:input {:type "submit" :value "Submit"}]]])
+        [:input {:type "submit" :value "Select"}]]])
     (do 
       (set-oauth-redirect! calendar-list-path)
       (response/redirect (oauth/get-raw-oath-url ctx)))))
