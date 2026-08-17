@@ -19,7 +19,9 @@
   :profiles { :uberjar {:aot :all} }
   :plugins [[lein-jdeb "0.2.2"]]
 
+  ;; Doesn't seem to be working!
   ;; https://github.com/r4um/lein-jdeb/blob/master/src/leiningen/jdeb.clj#L53
-  :deb-depends "libreoffice, default-jre | java7-runtime | java6-runtime" 
+  ;; :deb-depends "libreoffice-common, default-jre | java7-runtime | java6-runtime" 
+  
   :deb-maintainer "Michael Marsh <mike@marsh.pw>"
   )

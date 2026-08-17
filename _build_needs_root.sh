@@ -23,6 +23,7 @@ cp $desktop_file  ${desktop_file_dir}/${desktop_file}
 cp $package_and_binary_name ${bin_file_dir}/${package_and_binary_name}
 
 # For some reason jdeb/lein-jdeb is not populating this correctly?
+# https://github.com/r4um/lein-jdeb/blob/master/src/leiningen/jdeb.clj#L53
 echo "Depends: libreoffice-common, default-jre | java7-runtime | java6-runtime" >> $control_file_path
 
 dpkg-deb -b $tmp_dir $deb_file
