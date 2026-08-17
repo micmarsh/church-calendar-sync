@@ -30,14 +30,15 @@
    Converts 'func' into a channel-returning function if it isn't already"
   [func schedule]
   (fn [& args]
-    (a/go-loop [{:keys [max-attempts increment error? wait-ms]
-                 :or {max-attempts 2 increment identity wait-ms 1000 error? nil?} :as sched} schedule
-                current-attempt 1
-                value (a/<! (->chan (apply func args)))]
+    (let [call-func #(->chan (apply func args))]
+     (a/go-loop [{:keys [max-attempts increment error? wait-ms]
+                  :or {max-attempts 2 increment identity wait-ms 1000 error? nil?} :as sched} schedule
+                 current-attempt 1
+                 value (a/<! (call-func))]
       (if (and (error? value) (< current-attempt max-attempts))
         (do 
           (a/<! (a/timeout wait-ms))
           (recur (update sched :wait-ms increment)
                  (inc current-attempt)
-                 (a/<! (->chan (apply func args)))))
-        value))))
+                 (a/<! (call-func))))
+        value)))))
